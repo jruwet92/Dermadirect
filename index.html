@@ -664,6 +664,77 @@ END OF REPORT`;
                 }
             };
             
+        function sendToMake(to, subject, body, imageData) {
+            console.log('sendToMake function called with:', { to, subject, body: body.substring(0, 100) + '...', hasImage: !!imageData });
+            
+            // Get the original form data for individual fields
+            const formData = new FormData(document.getElementById('patientForm'));
+            const data = {};
+            
+            // Get regular form fields
+            for (let [key, value] of formData.entries()) {
+                if (data[key]) {
+                    if (Array.isArray(data[key])) {
+                        data[key].push(value);
+                    } else {
+                        data[key] = [data[key], value];
+                    }
+                } else {
+                    data[key] = value;
+                }
+            }
+            
+            // Get checkbox values
+            const symptomTypes = [];
+            document.querySelectorAll('input[name="symptomType"]:checked').forEach(cb => {
+                symptomTypes.push(cb.value);
+            });
+            
+            // Format values for readability
+            const formatValue = (key, value) => {
+                if (!value) return 'Not provided';
+                
+                switch(key) {
+                    case 'lesionDuration':
+                        return value.replace(/-/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
+                    case 'patientGender':
+                        return value.charAt(0).toUpperCase() + value.slice(1);
+                    case 'sunExposure':
+                        return value.charAt(0).toUpperCase() + value.slice(1);
+                    case 'symptoms':
+                    case 'lesionChange':
+                    case 'familyHistory':
+                        return value.charAt(0).toUpperCase() + value.slice(1);
+                    default:
+                        return value;
+                }
+            };
+            
+            // Process image data for Google Drive compatibility
+            let processedImageData = null;
+            let imageMimeType = null;
+            let imageExtension = '.jpg';
+            
+            if (imageData) {
+                // Extract just the base64 part (remove data:image/jpeg;base64, prefix)
+                const base64Parts = imageData.split(',');
+                if (base64Parts.length === 2) {
+                    processedImageData = base64Parts[1]; // Just the base64 data
+                    
+                    // Extract MIME type
+                    const mimeMatch = base64Parts[0].match(/data:([^;]+)/);
+                    if (mimeMatch) {
+                        imageMimeType = mimeMatch[1];
+                        imageExtension = imageMimeType.includes('png') ? '.png' : 
+                                       imageMimeType.includes('gif') ? '.gif' : '.jpg';
+                    }
+                }
+            }
+            
+            // Generate clean filename
+            const cleanPatientId = formatValue('patientId', data.patientId).replace(/[^a-zA-Z0-9]/g, '_');
+            const filename = `patient_${cleanPatientId}_lesion_${new Date().getTime()}${imageExtension}`;
+            
             // Prepare data for Make.com webhook - INDIVIDUAL FIELDS
             const webhookData = {
                 // Email info
@@ -688,9 +759,15 @@ END OF REPORT`;
                 previous_treatments: data.previousTreatments || 'None reported',
                 additional_notes: data.additionalNotes || 'No additional observations',
                 
+                // Image data - CLEAN FORMAT FOR GOOGLE DRIVE
+                image_data: imageData, // Full base64 with prefix (for reference)
+                image_base64_clean: processedImageData, // CLEAN base64 without prefix - USE THIS FOR GOOGLE DRIVE
+                image_mime_type: imageMimeType, // e.g., "image/jpeg"
+                image_filename: filename, // e.g., "patient_PAT001_lesion_1234567890.jpg"
+                image_extension: imageExtension, // e.g., ".jpg"
+                image_attached: processedImageData ? 'Yes' : 'No',
+                
                 // Technical info
-                image_data: imageData,
-                image_attached: imageData ? 'Yes' : 'No',
                 timestamp: new Date().toISOString(),
                 report_date: new Date().toLocaleDateString('en-US'),
                 report_time: new Date().toLocaleTimeString('en-US'),
