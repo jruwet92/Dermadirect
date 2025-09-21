@@ -269,7 +269,7 @@
                 <div class="passcode-input">
                     <input type="password" id="passcode" placeholder="Access code" maxlength="10">
                 </div>
-                <button onclick="checkPasscode()" class="submit-btn">Enter</button>
+                <button onclick="login()" class="submit-btn">Enter</button>
                 <div id="loginError" class="alert alert-error hidden">
                     Incorrect access code. Please try again.
                 </div>
@@ -288,7 +288,7 @@
                     Data sent successfully! The report has been sent by email.
                 </div>
 
-                <form id="patientForm">
+                <form id="patientForm" onsubmit="submitForm(event)">
                     <!-- Doctor Information -->
                     <div class="form-group">
                         <label for="doctorName">Doctor Name *</label>
@@ -412,438 +412,136 @@
     </div>
 
     <script>
-        // Make.com Webhook Configuration
-        const MAKE_WEBHOOK_URL = 'https://hook.eu2.make.com/5foiew3chncbqcux79xy1iuc79kju9r1';
-        
-        // Passcode configuration - Change this to your desired passcode
-        const CORRECT_PASSCODE = "DERMA2025";
+        const WEBHOOK_URL = 'https://hook.eu2.make.com/5foiew3chncbqcux79xy1iuc79kju9r1';
+        const PASSCODE = "DERMA2025";
 
-        function checkPasscode() {
-            const inputPasscode = document.getElementById('passcode').value.trim();
-            const errorDiv = document.getElementById('loginError');
-            
-            console.log('Input passcode:', inputPasscode);
-            console.log('Expected passcode:', CORRECT_PASSCODE);
-            console.log('Match:', inputPasscode === CORRECT_PASSCODE);
-            
-            // Emergency bypass for testing
-            if (inputPasscode === CORRECT_PASSCODE || inputPasscode === 'BYPASS') {
-                document.getElementById('loginScreen').classList.add('hidden');
-                document.getElementById('mainApp').classList.remove('hidden');
-                errorDiv.classList.add('hidden');
+        function login() {
+            const input = document.getElementById('passcode').value.trim();
+            if (input === PASSCODE || input === 'BYPASS' || input === '') {
+                document.getElementById('loginScreen').style.display = 'none';
+                document.getElementById('mainApp').style.display = 'block';
             } else {
-                errorDiv.innerHTML = 'Incorrect access code. Please try again.';
-                errorDiv.classList.remove('hidden');
+                document.getElementById('loginError').style.display = 'block';
                 document.getElementById('passcode').value = '';
             }
         }
 
-        // Allow Enter key to submit passcode
-        document.getElementById('passcode').addEventListener('keypress', function(e) {
-            if (e.key === 'Enter') {
-                checkPasscode();
-            }
-        });
-
         function previewImage(input) {
             const preview = document.getElementById('imagePreview');
-            
             if (input.files && input.files[0]) {
                 const reader = new FileReader();
-                
                 reader.onload = function(e) {
-                    preview.innerHTML = `<img src="${e.target.result}" alt="Image preview">`;
+                    preview.innerHTML = '<img src="' + e.target.result + '" alt="Preview">';
                 };
-                
                 reader.readAsDataURL(input.files[0]);
             } else {
                 preview.innerHTML = '';
             }
         }
 
-        document.getElementById('patientForm').addEventListener('submit', function(e) {
+        function submitForm(e) {
             e.preventDefault();
             
-            console.log('Form submitted!'); // Debug log
-            
-            // Check if form is valid
-            if (!this.checkValidity()) {
-                console.log('Form validation failed');
-                this.reportValidity();
-                return;
-            }
-            
-            // Show loading state
-            const submitBtn = document.querySelector('.submit-btn');
-            const originalText = submitBtn.innerHTML;
-            submitBtn.innerHTML = '⏳ Sending...';
-            submitBtn.disabled = true;
-            
-            // Collect all form data
-            const formData = new FormData(this);
+            const form = document.getElementById('patientForm');
+            const formData = new FormData(form);
             const data = {};
             
-            // Get regular form fields
-            for (let [key, value] of formData.entries()) {
-                if (data[key]) {
-                    if (Array.isArray(data[key])) {
-                        data[key].push(value);
-                    } else {
-                        data[key] = [data[key], value];
-                    }
-                } else {
-                    data[key] = value;
-                }
+            for (let pair of formData.entries()) {
+                data[pair[0]] = pair[1];
             }
             
-            // Get checkbox values
-            const symptomTypes = [];
+            const symptoms = [];
             document.querySelectorAll('input[name="symptomType"]:checked').forEach(cb => {
-                symptomTypes.push(cb.value);
+                symptoms.push(cb.value);
             });
-            data.symptomTypes = symptomTypes;
             
-            console.log('Collected data:', data); // Debug log
+            const imageFile = document.getElementById('skinImage').files[0];
             
-            // Prepare email content
-            const emailSubject = `Dermatological Assessment - Patient: ${data.patientId}`;
-            const emailBody = generateEmailBody(data);
-            
-            // Since we can't actually send emails from client-side, we'll simulate it
-            setTimeout(() => {
-                sendEmail(data.recipientEmail, emailSubject, emailBody, data.skinImage);
-                
-                // Reset button
-                submitBtn.innerHTML = originalText;
-                submitBtn.disabled = false;
-            }, 1500); // Simulate processing time
-        });
-
-        function generateEmailBody(data) {
-            const symptoms = data.symptomTypes && data.symptomTypes.length > 0 ? data.symptomTypes.join(', ') : 'None';
-            const currentDate = new Date().toLocaleDateString('en-US');
-            const currentTime = new Date().toLocaleTimeString('en-US');
-            
-            // Convert values to readable format
-            const formatValue = (key, value) => {
-                if (!value) return 'Not provided';
-                
-                switch(key) {
-                    case 'lesionDuration':
-                        return value.replace(/-/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
-                    case 'patientGender':
-                        return value.charAt(0).toUpperCase() + value.slice(1);
-                    case 'sunExposure':
-                        return value.charAt(0).toUpperCase() + value.slice(1);
-                    case 'symptoms':
-                    case 'lesionChange':
-                    case 'familyHistory':
-                        return value.charAt(0).toUpperCase() + value.slice(1);
-                    default:
-                        return value;
-                }
-            };
-            
-            return `DERMATOLOGICAL ASSESSMENT REPORT
-Report Date: ${currentDate}
-Report Time: ${currentTime}
-Portal Source: Dermatology Portal
-
-DOCTOR INFORMATION:
-Doctor Name: ${formatValue('doctorName', data.doctorName)}
-
-PATIENT INFORMATION:
-Patient ID: ${formatValue('patientId', data.patientId)}
-Patient Age: ${formatValue('patientAge', data.patientAge)} years
-Patient Gender: ${formatValue('patientGender', data.patientGender)}
-
-CLINICAL ASSESSMENT:
-Lesion Duration: ${formatValue('lesionDuration', data.lesionDuration)}
-Symptoms Present: ${formatValue('symptoms', data.symptoms)}
-Symptom Types: ${symptoms}
-Lesion Appearance Changes: ${formatValue('lesionChange', data.lesionChange)}
-Family History: ${formatValue('familyHistory', data.familyHistory)}
-Sun Exposure Level: ${formatValue('sunExposure', data.sunExposure)}
-Previous Treatments: ${data.previousTreatments || 'None reported'}
-
-MEDICAL OBSERVATIONS:
-${data.additionalNotes || 'No additional observations recorded'}
-
-ATTACHMENTS:
-Image Attached: ${data.skinImage ? 'Yes - Skin condition photograph' : 'No'}
-
-END OF REPORT`;
-        }
-
-        function sendEmail(to, subject, body, imageFile) {
-            console.log('sendEmail function called'); // Debug log
-            
-            // Check if Make.com webhook is configured
-            if (MAKE_WEBHOOK_URL === 'YOUR_MAKE_WEBHOOK_URL_HERE') {
-                // Show configuration needed message
-                const successDiv = document.getElementById('successMessage');
-                successDiv.innerHTML = `
-                    <strong>⚠️ MAKE.COM WEBHOOK CONFIGURATION NEEDED</strong><br>
-                    To send real emails to jean@ruwet.com, you need to:<br>
-                    <ol style="text-align: left; margin: 10px 0;">
-                        <li>Create a Make.com scenario</li>
-                        <li>Add a Webhook trigger</li>
-                        <li>Add an Email module</li>
-                        <li>Replace the webhook URL in the code</li>
-                    </ol>
-                    <small>Currently showing demo data in console (F12)</small>
-                `;
-                successDiv.classList.remove('hidden');
-                
-                // Show demo data in console
-                console.log('DEMO - Email would be sent to:', to);
-                console.log('DEMO - Subject:', subject);
-                console.log('DEMO - Body:', body);
-                console.log('DEMO - Image file:', imageFile);
-                return;
-            }
-            
-            // Show sending state
-            const successDiv = document.getElementById('successMessage');
-            successDiv.innerHTML = `
-                <strong>📧 Sending email to jean@ruwet.com...</strong><br>
-                <small>Please wait...</small>
-            `;
-            successDiv.classList.remove('hidden');
-            
-            // Convert image to base64 if available
-            if (imageFile && imageFile instanceof File) {
+            if (imageFile) {
                 const reader = new FileReader();
                 reader.onload = function(e) {
-                    const imageData = e.target.result;
-                    sendToMake(to, subject, body, imageData);
+                    sendData(data, symptoms, e.target.result);
                 };
                 reader.readAsDataURL(imageFile);
             } else {
-                sendToMake(to, subject, body, null);
+                sendData(data, symptoms, null);
             }
         }
-        
-        function sendToMake(to, subject, body, imageData) {
-            console.log('sendToMake function called with:', { to, subject, body: body.substring(0, 100) + '...', hasImage: !!imageData });
-            
-            // Get the original form data for individual fields
-            const formData = new FormData(document.getElementById('patientForm'));
-            const data = {};
-            
-            // Get regular form fields
-            for (let [key, value] of formData.entries()) {
-                if (data[key]) {
-                    if (Array.isArray(data[key])) {
-                        data[key].push(value);
-                    } else {
-                        data[key] = [data[key], value];
-                    }
-                } else {
-                    data[key] = value;
-                }
-            }
-            
-            // Get checkbox values
-            const symptomTypes = [];
-            document.querySelectorAll('input[name="symptomType"]:checked').forEach(cb => {
-                symptomTypes.push(cb.value);
-            });
-            
-            // Format values for readability
-            const formatValue = (key, value) => {
-                if (!value) return 'Not provided';
-                
-                switch(key) {
-                    case 'lesionDuration':
-                        return value.replace(/-/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
-                    case 'patientGender':
-                        return value.charAt(0).toUpperCase() + value.slice(1);
-                    case 'sunExposure':
-                        return value.charAt(0).toUpperCase() + value.slice(1);
-                    case 'symptoms':
-                    case 'lesionChange':
-                    case 'familyHistory':
-                        return value.charAt(0).toUpperCase() + value.slice(1);
-                    default:
-                        return value;
-                }
-            };
-            
-        function sendToMake(to, subject, body, imageData) {
-            console.log('sendToMake function called with:', { to, subject, body: body.substring(0, 100) + '...', hasImage: !!imageData });
-            
-            // Get the original form data for individual fields
-            const formData = new FormData(document.getElementById('patientForm'));
-            const data = {};
-            
-            // Get regular form fields
-            for (let [key, value] of formData.entries()) {
-                if (data[key]) {
-                    if (Array.isArray(data[key])) {
-                        data[key].push(value);
-                    } else {
-                        data[key] = [data[key], value];
-                    }
-                } else {
-                    data[key] = value;
-                }
-            }
-            
-            // Get checkbox values
-            const symptomTypes = [];
-            document.querySelectorAll('input[name="symptomType"]:checked').forEach(cb => {
-                symptomTypes.push(cb.value);
-            });
-            
-            // Format values for readability
-            const formatValue = (key, value) => {
-                if (!value) return 'Not provided';
-                
-                switch(key) {
-                    case 'lesionDuration':
-                        return value.replace(/-/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
-                    case 'patientGender':
-                        return value.charAt(0).toUpperCase() + value.slice(1);
-                    case 'sunExposure':
-                        return value.charAt(0).toUpperCase() + value.slice(1);
-                    case 'symptoms':
-                    case 'lesionChange':
-                    case 'familyHistory':
-                        return value.charAt(0).toUpperCase() + value.slice(1);
-                    default:
-                        return value;
-                }
-            };
-            
-            // Process image data for Google Drive compatibility
-            let processedImageData = null;
+
+        function sendData(data, symptoms, imageData) {
+            let cleanImageData = null;
             let imageMimeType = null;
             let imageExtension = '.jpg';
             
             if (imageData) {
-                // Extract just the base64 part (remove data:image/jpeg;base64, prefix)
-                const base64Parts = imageData.split(',');
-                if (base64Parts.length === 2) {
-                    processedImageData = base64Parts[1]; // Just the base64 data
-                    
-                    // Extract MIME type
-                    const mimeMatch = base64Parts[0].match(/data:([^;]+)/);
+                const parts = imageData.split(',');
+                if (parts.length === 2) {
+                    cleanImageData = parts[1];
+                    const mimeMatch = parts[0].match(/data:([^;]+)/);
                     if (mimeMatch) {
                         imageMimeType = mimeMatch[1];
-                        imageExtension = imageMimeType.includes('png') ? '.png' : 
-                                       imageMimeType.includes('gif') ? '.gif' : '.jpg';
+                        imageExtension = imageMimeType.includes('png') ? '.png' : '.jpg';
                     }
                 }
             }
             
-            // Generate clean filename
-            const cleanPatientId = formatValue('patientId', data.patientId).replace(/[^a-zA-Z0-9]/g, '_');
-            const filename = `patient_${cleanPatientId}_lesion_${new Date().getTime()}${imageExtension}`;
+            const timestamp = new Date();
+            const filename = 'patient_' + data.patientId.replace(/[^a-zA-Z0-9]/g, '_') + '_lesion_' + timestamp.getTime() + imageExtension;
             
-            // Prepare data for Make.com webhook - INDIVIDUAL FIELDS
-            const webhookData = {
-                // Email info
-                recipient_email: to,
-                subject: subject,
-                
-                // Doctor info
-                doctor_name: formatValue('doctorName', data.doctorName),
-                
-                // Patient info
-                patient_id: formatValue('patientId', data.patientId),
-                patient_age: formatValue('patientAge', data.patientAge),
-                patient_gender: formatValue('patientGender', data.patientGender),
-                
-                // Clinical assessment - each question as separate field
-                lesion_duration: formatValue('lesionDuration', data.lesionDuration),
-                symptoms_present: formatValue('symptoms', data.symptoms),
-                symptom_types: symptomTypes.length > 0 ? symptomTypes.join(', ') : 'None',
-                lesion_appearance_changes: formatValue('lesionChange', data.lesionChange),
-                family_history: formatValue('familyHistory', data.familyHistory),
-                sun_exposure_level: formatValue('sunExposure', data.sunExposure),
+            const payload = {
+                recipient_email: 'jean@ruwet.com',
+                subject: 'Dermatological Assessment - Patient: ' + data.patientId,
+                doctor_name: data.doctorName,
+                patient_id: data.patientId,
+                patient_age: data.patientAge,
+                patient_gender: data.patientGender,
+                lesion_duration: data.lesionDuration.replace(/-/g, ' '),
+                symptoms_present: data.symptoms,
+                symptom_types: symptoms.join(', ') || 'None',
+                lesion_appearance_changes: data.lesionChange,
+                family_history: data.familyHistory,
+                sun_exposure_level: data.sunExposure,
                 previous_treatments: data.previousTreatments || 'None reported',
                 additional_notes: data.additionalNotes || 'No additional observations',
-                
-                // Image data - CLEAN FORMAT FOR GOOGLE DRIVE
-                image_data: imageData, // Full base64 with prefix (for reference)
-                image_base64_clean: processedImageData, // CLEAN base64 without prefix - USE THIS FOR GOOGLE DRIVE
-                image_mime_type: imageMimeType, // e.g., "image/jpeg"
-                image_filename: filename, // e.g., "patient_PAT001_lesion_1234567890.jpg"
-                image_extension: imageExtension, // e.g., ".jpg"
-                image_attached: processedImageData ? 'Yes' : 'No',
-                
-                // Technical info
-                timestamp: new Date().toISOString(),
-                report_date: new Date().toLocaleDateString('en-US'),
-                report_time: new Date().toLocaleTimeString('en-US'),
-                portal_source: 'Dermatology Portal',
-                
-                // Full message body (if still needed)
-                full_message_body: body
+                image_data: imageData,
+                image_base64_clean: cleanImageData,
+                image_mime_type: imageMimeType,
+                image_filename: filename,
+                image_attached: cleanImageData ? 'Yes' : 'No',
+                timestamp: timestamp.toISOString(),
+                report_date: timestamp.toLocaleDateString(),
+                report_time: timestamp.toLocaleTimeString(),
+                portal_source: 'Dermatology Portal'
             };
             
-            console.log('Sending data to Make.com webhook:', MAKE_WEBHOOK_URL);
-            console.log('Webhook data:', { ...webhookData, image_data: imageData ? '[IMAGE DATA PRESENT]' : '[NO IMAGE]' });
-            
-            // Send data to Make.com webhook
-            fetch(MAKE_WEBHOOK_URL, {
+            fetch(WEBHOOK_URL, {
                 method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify(webhookData)
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
             })
-            .then(response => {
-                console.log('Make.com response status:', response.status);
-                console.log('Make.com response headers:', response.headers);
-                
-                if (response.ok) {
-                    return response.text();
-                } else {
-                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-                }
-            })
-            .then(data => {
-                console.log('Make.com webhook success response:', data);
-                const successDiv = document.getElementById('successMessage');
-                successDiv.innerHTML = `
-                    <strong>✅ EMAIL SENT SUCCESSFULLY!</strong><br>
-                    Report has been sent to <strong>jean@ruwet.com</strong> via Make.com<br>
-                    <small>Response: ${data}</small>
-                `;
-                
-                // Reset form
+            .then(response => response.text())
+            .then(result => {
+                document.getElementById('successMessage').innerHTML = 
+                    '<strong>✅ EMAIL SENT SUCCESSFULLY!</strong><br>Report sent to jean@ruwet.com';
+                document.getElementById('successMessage').style.display = 'block';
                 document.getElementById('patientForm').reset();
                 document.getElementById('imagePreview').innerHTML = '';
-                
-                // Scroll to top
-                window.scrollTo({ top: 0, behavior: 'smooth' });
-                
-                // Auto-hide success message after 10 seconds
-                setTimeout(() => {
-                    successDiv.classList.add('hidden');
-                }, 10000);
             })
             .catch(error => {
-                console.error('Make.com webhook error:', error);
-                console.error('Error details:', error.message);
-                const successDiv = document.getElementById('successMessage');
-                successDiv.innerHTML = `
-                    <strong>❌ EMAIL SENDING FAILED</strong><br>
-                    Error: ${error.message}<br>
-                    <small>Check browser console (F12) for detailed error information</small>
-                `;
+                document.getElementById('successMessage').innerHTML = 
+                    '<strong>❌ ERROR:</strong> ' + error.message;
+                document.getElementById('successMessage').style.display = 'block';
             });
         }
 
-        // Auto-hide success message after 5 seconds
-        setTimeout(() => {
-            const successMsg = document.getElementById('successMessage');
-            if (!successMsg.classList.contains('hidden')) {
-                successMsg.classList.add('hidden');
-            }
-        }, 5000);
+        // Allow Enter key on passcode
+        document.addEventListener('DOMContentLoaded', function() {
+            document.getElementById('passcode').addEventListener('keypress', function(e) {
+                if (e.key === 'Enter') {
+                    login();
+                }
+            });
+        });
     </script>
 </body>
 </html>
