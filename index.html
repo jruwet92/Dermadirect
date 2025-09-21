@@ -422,11 +422,19 @@
             const inputPasscode = document.getElementById('passcode').value;
             const errorDiv = document.getElementById('loginError');
             
+            console.log('Input passcode:', inputPasscode);
+            console.log('Expected passcode:', CORRECT_PASSCODE);
+            console.log('Match:', inputPasscode === CORRECT_PASSCODE);
+            
             if (inputPasscode === CORRECT_PASSCODE) {
                 document.getElementById('loginScreen').classList.add('hidden');
                 document.getElementById('mainApp').classList.remove('hidden');
                 errorDiv.classList.add('hidden');
             } else {
+                errorDiv.innerHTML = `
+                    Incorrect access code. Please try again.<br>
+                    <small>Expected: ${CORRECT_PASSCODE}</small>
+                `;
                 errorDiv.classList.remove('hidden');
                 document.getElementById('passcode').value = '';
             }
