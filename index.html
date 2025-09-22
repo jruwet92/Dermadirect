@@ -441,8 +441,22 @@
 
         function submitForm(e) {
             e.preventDefault();
+            console.log('Form submitted!');
+            
+            // Show loading state
+            const submitBtn = document.querySelector('.submit-btn');
+            const originalText = submitBtn.innerHTML;
+            submitBtn.innerHTML = '⏳ Sending...';
+            submitBtn.disabled = true;
             
             const form = document.getElementById('patientForm');
+            if (!form.checkValidity()) {
+                form.reportValidity();
+                submitBtn.innerHTML = originalText;
+                submitBtn.disabled = false;
+                return;
+            }
+            
             const formData = new FormData(form);
             const data = {};
             
@@ -458,79 +472,92 @@
             const imageFile = document.getElementById('skinImage').files[0];
             
             if (imageFile) {
+                console.log('Processing image file...');
                 const reader = new FileReader();
                 reader.onload = function(e) {
-                    sendData(data, symptoms, e.target.result);
+                    sendData(data, symptoms, e.target.result, submitBtn, originalText);
                 };
                 reader.readAsDataURL(imageFile);
             } else {
-                sendData(data, symptoms, null);
+                sendData(data, symptoms, null, submitBtn, originalText);
             }
         }
 
-        function sendData(data, symptoms, imageData) {
-            let cleanImageData = null;
-            let imageMimeType = null;
-            let imageExtension = '.jpg';
-            
-            if (imageData) {
-                const parts = imageData.split(',');
-                if (parts.length === 2) {
-                    cleanImageData = parts[1];
-                    const mimeMatch = parts[0].match(/data:([^;]+)/);
-                    if (mimeMatch) {
-                        imageMimeType = mimeMatch[1];
-                        imageExtension = imageMimeType.includes('png') ? '.png' : '.jpg';
-                    }
-                }
-            }
+        function sendData(data, symptoms, imageData, submitBtn, originalText) {
+            console.log('Sending data to Make.com...');
             
             const timestamp = new Date();
-            const filename = 'patient_' + data.patientId.replace(/[^a-zA-Z0-9]/g, '_') + '_lesion_' + timestamp.getTime() + imageExtension;
+            const imageFile = document.getElementById('skinImage').files[0];
             
-            const payload = {
-                recipient_email: 'jean@ruwet.com',
-                subject: 'Dermatological Assessment - Patient: ' + data.patientId,
-                doctor_name: data.doctorName,
-                patient_id: data.patientId,
-                patient_age: data.patientAge,
-                patient_gender: data.patientGender,
-                lesion_duration: data.lesionDuration.replace(/-/g, ' '),
-                symptoms_present: data.symptoms,
-                symptom_types: symptoms.join(', ') || 'None',
-                lesion_appearance_changes: data.lesionChange,
-                family_history: data.familyHistory,
-                sun_exposure_level: data.sunExposure,
-                previous_treatments: data.previousTreatments || 'None reported',
-                additional_notes: data.additionalNotes || 'No additional observations',
-                image_data: imageData,
-                image_base64_clean: cleanImageData,
-                image_mime_type: imageMimeType,
-                image_filename: filename,
-                image_attached: cleanImageData ? 'Yes' : 'No',
-                timestamp: timestamp.toISOString(),
-                report_date: timestamp.toLocaleDateString(),
-                report_time: timestamp.toLocaleTimeString(),
-                portal_source: 'Dermatology Portal'
-            };
+            // Use FormData to send actual file + other data
+            const formData = new FormData();
+            
+            // Add all form fields
+            formData.append('recipient_email', 'jean@ruwet.com');
+            formData.append('subject', 'Dermatological Assessment - Patient: ' + data.patientId);
+            formData.append('doctor_name', data.doctorName);
+            formData.append('patient_id', data.patientId);
+            formData.append('patient_age', data.patientAge);
+            formData.append('patient_gender', data.patientGender);
+            formData.append('lesion_duration', data.lesionDuration.replace(/-/g, ' '));
+            formData.append('symptoms_present', data.symptoms);
+            formData.append('symptom_types', symptoms.join(', ') || 'None');
+            formData.append('lesion_appearance_changes', data.lesionChange);
+            formData.append('family_history', data.familyHistory);
+            formData.append('sun_exposure_level', data.sunExposure);
+            formData.append('previous_treatments', data.previousTreatments || 'None reported');
+            formData.append('additional_notes', data.additionalNotes || 'No additional observations');
+            formData.append('timestamp', timestamp.toISOString());
+            formData.append('report_date', timestamp.toLocaleDateString());
+            formData.append('report_time', timestamp.toLocaleTimeString());
+            formData.append('portal_source', 'Dermatology Portal');
+            
+            // Add the actual image file
+            if (imageFile) {
+                const filename = 'patient_' + data.patientId.replace(/[^a-zA-Z0-9]/g, '_') + '_lesion_' + timestamp.getTime() + '.' + imageFile.name.split('.').pop();
+                formData.append('image_file', imageFile, filename);
+                formData.append('image_attached', 'Yes');
+                formData.append('image_filename', filename);
+                formData.append('image_mime_type', imageFile.type);
+            } else {
+                formData.append('image_attached', 'No');
+            }
+            
+            console.log('Sending FormData with actual file...');
             
             fetch(WEBHOOK_URL, {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(payload)
+                body: formData // Don't set Content-Type header - let browser set it
             })
-            .then(response => response.text())
+            .then(response => {
+                console.log('Response status:', response.status);
+                if (response.ok) {
+                    return response.text();
+                } else {
+                    throw new Error('HTTP ' + response.status + ': ' + response.statusText);
+                }
+            })
             .then(result => {
+                console.log('Success:', result);
                 document.getElementById('successMessage').innerHTML = 
-                    '<strong>✅ EMAIL SENT SUCCESSFULLY!</strong><br>Report sent to jean@ruwet.com';
+                    '<strong>✅ EMAIL SENT SUCCESSFULLY!</strong><br>Report sent to jean@ruwet.com<br><small>Image file uploaded directly</small>';
+                document.getElementById('successMessage').className = 'alert alert-success';
                 document.getElementById('successMessage').style.display = 'block';
                 document.getElementById('patientForm').reset();
                 document.getElementById('imagePreview').innerHTML = '';
+                window.scrollTo({ top: 0, behavior: 'smooth' });
             })
             .catch(error => {
+                console.error('Error:', error);
                 document.getElementById('successMessage').innerHTML = 
                     '<strong>❌ ERROR:</strong> ' + error.message;
+                document.getElementById('successMessage').className = 'alert alert-error';
                 document.getElementById('successMessage').style.display = 'block';
+            })
+            .finally(() => {
+                // Reset button
+                submitBtn.innerHTML = originalText;
+                submitBtn.disabled = false;
             });
         }
 
