@@ -435,25 +435,16 @@
         // Load doctors database
         async function loadDoctorsDatabase() {
             try {
-                const response = await fetch('./doctors.json', {
-                    method: 'GET',
-                    headers: {
-                        'Content-Type': 'application/json',
-                    },
-                    cache: 'no-cache'
-                });
-                
+                const response = await fetch('doctors.json');
                 if (!response.ok) {
-                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                    throw new Error('Failed to load doctors database');
                 }
-                
-                const data = await response.json();
-                doctorsDatabase = data;
+                doctorsDatabase = await response.json();
                 console.log('Doctors database loaded successfully');
-                return true;
             } catch (error) {
                 console.error('Error loading doctors database:', error);
-                return false;
+                // Show error but don't block login attempts
+                console.log('Will try to load database on login attempt');
             }
         }
 
@@ -462,7 +453,6 @@
             
             // NO EMPTY PASSWORD ALLOWED
             if (!input) {
-                document.getElementById('loginError').innerHTML = 'Please enter an access code.';
                 document.getElementById('loginError').style.display = 'block';
                 document.getElementById('passcode').value = '';
                 document.getElementById('passcode').focus();
@@ -471,11 +461,13 @@
             
             // Load database if not already loaded
             if (!doctorsDatabase) {
-                const loaded = await loadDoctorsDatabase();
-                if (!loaded) {
-                    document.getElementById('loginError').innerHTML = 'Error: Could not load doctors database. Please refresh and try again.';
-                    document.getElementById('loginError').style.display = 'block';
-                    return;
+                try {
+                    const response = await fetch('doctors.json');
+                    if (response.ok) {
+                        doctorsDatabase = await response.json();
+                    }
+                } catch (error) {
+                    console.error('Failed to load doctors database:', error);
                 }
             }
             
@@ -499,7 +491,6 @@
                 console.log('Login successful for:', currentDoctor.name);
             } else {
                 // Invalid passcode
-                document.getElementById('loginError').innerHTML = 'Invalid access code. Please try again.';
                 document.getElementById('loginError').style.display = 'block';
                 document.getElementById('passcode').value = '';
                 document.getElementById('passcode').focus();
@@ -647,7 +638,7 @@
 
         // Initialize application
         document.addEventListener('DOMContentLoaded', function() {
-            // Preload doctors database
+            // Try to preload doctors database
             loadDoctorsDatabase();
             
             // Allow Enter key on passcode
