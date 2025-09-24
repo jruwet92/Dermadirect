@@ -1,0 +1,20 @@
+{
+  "doctors": {
+    "DERMA2025": {
+      "name": "Dr. E. Graulich",
+      "email": "graulich@clinic.com",
+    },
+    "DERMA2024": {
+      "name": "Dr. J. Ruwet",
+      "email": "jean@ruwet.com",
+    },
+    "DERMA2023": {
+      "name": "Dr. A. Martin",
+      "email": "martin@clinic.com",
+    },
+    "SKIN2025": {
+      "name": "Dr. S. Johnson",
+      "email": "johnson@clinic.com",
+    }
+  }
+}
