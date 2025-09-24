@@ -443,31 +443,8 @@
                 console.log('Doctors database loaded successfully');
             } catch (error) {
                 console.error('Error loading doctors database:', error);
-                // Fallback to hardcoded data if file can't be loaded
-                doctorsDatabase = {
-                    doctors: {
-                        "DERMA2025": {
-                            "name": "Dr. E. Graulich",
-                            "email": "graulich@clinic.com",
-                            "specialization": "Dermatology"
-                        },
-                        "DERMA2024": {
-                            "name": "Dr. J. Ruwet",
-                            "email": "jean@ruwet.com",
-                            "specialization": "Dermatology"
-                        },
-                        "DERMA2023": {
-                            "name": "Dr. A. Martin",
-                            "email": "martin@clinic.com",
-                            "specialization": "Dermatology"
-                        },
-                        "SKIN2025": {
-                            "name": "Dr. S. Johnson",
-                            "email": "johnson@clinic.com",
-                            "specialization": "Dermatology & Oncology"
-                        }
-                    }
-                };
+                alert('Error: Could not load doctors database. Please make sure doctors.json file exists.');
+                return;
             }
         }
 
