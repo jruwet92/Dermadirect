@@ -455,6 +455,16 @@
                             "name": "Dr. J. Ruwet",
                             "email": "jean@ruwet.com",
                             "specialization": "Dermatology"
+                        },
+                        "DERMA2023": {
+                            "name": "Dr. A. Martin",
+                            "email": "martin@clinic.com",
+                            "specialization": "Dermatology"
+                        },
+                        "SKIN2025": {
+                            "name": "Dr. S. Johnson",
+                            "email": "johnson@clinic.com",
+                            "specialization": "Dermatology & Oncology"
                         }
                     }
                 };
@@ -462,15 +472,23 @@
         }
 
         async function login() {
-            const input = document.getElementById('passcode').value.trim().toUpperCase();
+            const input = document.getElementById('passcode').value.trim();
+            
+            // NO EMPTY PASSWORD ALLOWED
+            if (!input) {
+                document.getElementById('loginError').style.display = 'block';
+                document.getElementById('passcode').value = '';
+                document.getElementById('passcode').focus();
+                return;
+            }
             
             // Load database if not already loaded
             if (!doctorsDatabase) {
                 await loadDoctorsDatabase();
             }
             
-            // Check if passcode exists in database
-            if (doctorsDatabase.doctors[input]) {
+            // Check if passcode exists in database (case sensitive)
+            if (doctorsDatabase && doctorsDatabase.doctors && doctorsDatabase.doctors[input]) {
                 currentDoctor = {
                     code: input,
                     ...doctorsDatabase.doctors[input]
@@ -487,26 +505,12 @@
                 document.getElementById('loginError').style.display = 'none';
                 
                 console.log('Login successful for:', currentDoctor.name);
-            } else if (input === 'BYPASS' || input === '') {
-                // Developer bypass
-                currentDoctor = {
-                    code: 'BYPASS',
-                    name: 'Dr. Developer',
-                    email: 'jean@ruwet.com',
-                    specialization: 'Development Testing'
-                };
-                
-                document.getElementById('doctorName').textContent = currentDoctor.name;
-                document.getElementById('doctorEmail').textContent = currentDoctor.email;
-                document.getElementById('doctorSpecialization').textContent = currentDoctor.specialization;
-                
-                document.getElementById('loginScreen').style.display = 'none';
-                document.getElementById('mainApp').style.display = 'block';
-                document.getElementById('loginError').style.display = 'none';
             } else {
+                // Invalid passcode
                 document.getElementById('loginError').style.display = 'block';
                 document.getElementById('passcode').value = '';
                 document.getElementById('passcode').focus();
+                console.log('Failed login attempt for:', input);
             }
         }
 
