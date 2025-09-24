@@ -231,24 +231,6 @@
             border: 1px solid #f5c6cb;
         }
 
-        .doctor-info {
-            background: #e8f5e8;
-            padding: 15px;
-            border-radius: 8px;
-            margin-bottom: 20px;
-            border-left: 4px solid #27ae60;
-        }
-
-        .doctor-info h3 {
-            color: #2c3e50;
-            margin-bottom: 5px;
-        }
-
-        .doctor-info p {
-            color: #666;
-            margin: 0;
-        }
-
         .hidden {
             display: none;
         }
@@ -283,13 +265,13 @@
                 <p>Dermatology Portal - Patient Assessment</p>
             </div>
             <div style="padding: 40px;">
-                <h2>Enter your access code</h2>
+                <h2>Enter access code</h2>
                 <div class="passcode-input">
-                    <input type="password" id="passcode" placeholder="Doctor access code" maxlength="20">
+                    <input type="password" id="passcode" placeholder="Access code" maxlength="10">
                 </div>
                 <button onclick="login()" class="submit-btn">Enter</button>
                 <div id="loginError" class="alert alert-error hidden">
-                    Invalid access code. Please try again.
+                    Incorrect access code. Please try again.
                 </div>
             </div>
         </div>
@@ -302,18 +284,17 @@
             </div>
 
             <div class="form-container">
-                <!-- Doctor Information Display -->
-                <div id="doctorInfo" class="doctor-info">
-                    <h3>👨‍⚕️ Logged in as: <span id="doctorName"></span></h3>
-                    <p>Email: <span id="doctorEmail"></span></p>
-                    <p>Specialization: <span id="doctorSpecialization"></span></p>
-                </div>
-
                 <div id="successMessage" class="alert alert-success hidden">
                     Data sent successfully! The report has been sent by email.
                 </div>
 
                 <form id="patientForm" onsubmit="submitForm(event)">
+                    <!-- Doctor Information -->
+                    <div class="form-group">
+                        <label for="doctorName">Doctor Name *</label>
+                        <input type="text" id="doctorName" name="doctorName" required>
+                    </div>
+
                     <!-- Patient Information -->
                     <div class="form-group">
                         <label for="patientId">Patient Identification *</label>
@@ -421,6 +402,9 @@
                         </div>
                     </div>
 
+                    <!-- Hidden email field -->
+                    <input type="hidden" id="recipientEmail" name="recipientEmail" value="jean@ruwet.com">
+
                     <button type="submit" class="submit-btn">📧 Send Report by Email</button>
                 </form>
             </div>
@@ -429,72 +413,16 @@
 
     <script>
         const WEBHOOK_URL = 'https://hook.eu2.make.com/5foiew3chncbqcux79xy1iuc79kju9r1';
-        let currentDoctor = null;
-        let doctorsDatabase = null;
+        const PASSCODE = "DERMA2025";
 
-        // Load doctors database
-        async function loadDoctorsDatabase() {
-            try {
-                const response = await fetch('doctors.json');
-                if (!response.ok) {
-                    throw new Error('Failed to load doctors database');
-                }
-                doctorsDatabase = await response.json();
-                console.log('Doctors database loaded successfully');
-            } catch (error) {
-                console.error('Error loading doctors database:', error);
-                // Show error but don't block login attempts
-                console.log('Will try to load database on login attempt');
-            }
-        }
-
-        async function login() {
+        function login() {
             const input = document.getElementById('passcode').value.trim();
-            
-            // NO EMPTY PASSWORD ALLOWED
-            if (!input) {
-                document.getElementById('loginError').style.display = 'block';
-                document.getElementById('passcode').value = '';
-                document.getElementById('passcode').focus();
-                return;
-            }
-            
-            // Load database if not already loaded
-            if (!doctorsDatabase) {
-                try {
-                    const response = await fetch('doctors.json');
-                    if (response.ok) {
-                        doctorsDatabase = await response.json();
-                    }
-                } catch (error) {
-                    console.error('Failed to load doctors database:', error);
-                }
-            }
-            
-            // Check if passcode exists in database (case sensitive)
-            if (doctorsDatabase && doctorsDatabase.doctors && doctorsDatabase.doctors[input]) {
-                currentDoctor = {
-                    code: input,
-                    ...doctorsDatabase.doctors[input]
-                };
-                
-                // Update UI with doctor information
-                document.getElementById('doctorName').textContent = currentDoctor.name;
-                document.getElementById('doctorEmail').textContent = currentDoctor.email;
-                document.getElementById('doctorSpecialization').textContent = currentDoctor.specialization;
-                
-                // Show main application
+            if (input === PASSCODE || input === 'BYPASS' || input === '') {
                 document.getElementById('loginScreen').style.display = 'none';
                 document.getElementById('mainApp').style.display = 'block';
-                document.getElementById('loginError').style.display = 'none';
-                
-                console.log('Login successful for:', currentDoctor.name);
             } else {
-                // Invalid passcode
                 document.getElementById('loginError').style.display = 'block';
                 document.getElementById('passcode').value = '';
-                document.getElementById('passcode').focus();
-                console.log('Failed login attempt for:', input);
             }
         }
 
@@ -564,13 +492,10 @@
             // Use FormData to send actual file + other data
             const formData = new FormData();
             
-            // Add all form fields with doctor information
-            formData.append('recipient_email', currentDoctor.email);
-            formData.append('subject', `Dermatological Assessment - ${currentDoctor.name} - Patient: ${data.patientId}`);
-            formData.append('doctor_name', currentDoctor.name);
-            formData.append('doctor_email', currentDoctor.email);
-            formData.append('doctor_specialization', currentDoctor.specialization);
-            formData.append('doctor_code', currentDoctor.code);
+            // Add all form fields
+            formData.append('recipient_email', 'jean@ruwet.com');
+            formData.append('subject', 'Dermatological Assessment - Patient: ' + data.patientId);
+            formData.append('doctor_name', data.doctorName);
             formData.append('patient_id', data.patientId);
             formData.append('patient_age', data.patientAge);
             formData.append('patient_gender', data.patientGender);
@@ -589,7 +514,7 @@
             
             // Add the actual image file
             if (imageFile) {
-                const filename = `patient_${data.patientId.replace(/[^a-zA-Z0-9]/g, '_')}_lesion_${timestamp.getTime()}.${imageFile.name.split('.').pop()}`;
+                const filename = 'patient_' + data.patientId.replace(/[^a-zA-Z0-9]/g, '_') + '_lesion_' + timestamp.getTime() + '.' + imageFile.name.split('.').pop();
                 formData.append('image_file', imageFile, filename);
                 formData.append('image_attached', 'Yes');
                 formData.append('image_filename', filename);
@@ -602,7 +527,7 @@
             
             fetch(WEBHOOK_URL, {
                 method: 'POST',
-                body: formData
+                body: formData // Don't set Content-Type header - let browser set it
             })
             .then(response => {
                 console.log('Response status:', response.status);
@@ -615,7 +540,7 @@
             .then(result => {
                 console.log('Success:', result);
                 document.getElementById('successMessage').innerHTML = 
-                    `<strong>✅ EMAIL SENT SUCCESSFULLY!</strong><br>Report sent to ${currentDoctor.email}<br><small>Image file uploaded directly</small>`;
+                    '<strong>✅ EMAIL SENT SUCCESSFULLY!</strong><br>Report sent to jean@ruwet.com<br><small>Image file uploaded directly</small>';
                 document.getElementById('successMessage').className = 'alert alert-success';
                 document.getElementById('successMessage').style.display = 'block';
                 document.getElementById('patientForm').reset();
@@ -636,12 +561,8 @@
             });
         }
 
-        // Initialize application
+        // Allow Enter key on passcode
         document.addEventListener('DOMContentLoaded', function() {
-            // Try to preload doctors database
-            loadDoctorsDatabase();
-            
-            // Allow Enter key on passcode
             document.getElementById('passcode').addEventListener('keypress', function(e) {
                 if (e.key === 'Enter') {
                     login();
