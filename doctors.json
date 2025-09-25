@@ -1,0 +1,36 @@
+{
+  "doctors": [
+    {
+      "id": "dr_jean",
+      "name": "Dr. Jean Ruwet",
+      "email": "jean@ruwet.com",
+      "accessToken": "DERMA2025",
+      "active": true
+    },
+    {
+      "id": "dr_smith",
+      "name": "Dr. Sarah Smith",
+      "email": "sarah.smith@dermaclinic.com",
+      "accessToken": "SKIN2025",
+      "active": true
+    },
+    {
+      "id": "dr_johnson",
+      "name": "Dr. Michael Johnson",
+      "email": "m.johnson@skincare.org",
+      "accessToken": "DERM2025",
+      "active": true
+    },
+    {
+      "id": "dr_garcia",
+      "name": "Dr. Maria Garcia",
+      "email": "maria.garcia@dermatology.net",
+      "accessToken": "MOLE2025",
+      "active": true
+    }
+  ],
+  "adminTokens": [
+    "ADMIN2025",
+    "BYPASS"
+  ]
+}
