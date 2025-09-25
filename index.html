@@ -264,6 +264,18 @@
             margin-top: 10px;
         }
 
+        /* Bottom confirmation message */
+        .bottom-alert {
+            padding: 20px;
+            border-radius: 8px;
+            margin-top: 20px;
+            font-weight: 500;
+            text-align: center;
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+
         @media (max-width: 768px) {
             .container {
                 margin: 10px;
@@ -448,6 +460,12 @@
 
                     <button type="submit" class="submit-btn">📧 Send Report by Email</button>
                 </form>
+
+                <!-- Bottom confirmation message -->
+                <div id="bottomSuccessMessage" class="bottom-alert hidden">
+                    <strong>✅ Votre demande a bien été transmise à notre dermatologue</strong><br><br>
+                    Le cas de votre patient sera revu sous 24h et l'analyse vous sera transmise par email.
+                </div>
             </div>
         </div>
     </div>
@@ -645,20 +663,34 @@
             })
             .then(result => {
                 console.log('Success:', result);
+                
+                // Update top success message
                 document.getElementById('successMessage').innerHTML = 
-                    `<strong>✅ EMAIL SENT SUCCESSFULLY!</strong><br>Report sent to ${currentDoctor.email}<br><small>Image file uploaded directly</small>`;
+                    `<strong>✅ Votre demande a bien été transmise à notre dermatologue</strong><br>Le cas de votre patient sera revu sous 24h et l'analyse vous sera transmise par email.`;
                 document.getElementById('successMessage').className = 'alert alert-success';
                 document.getElementById('successMessage').style.display = 'block';
+                
+                // Show bottom success message
+                document.getElementById('bottomSuccessMessage').style.display = 'block';
+                
+                // Reset form
                 document.getElementById('patientForm').reset();
                 document.getElementById('imagePreview').innerHTML = '';
+                
+                // Scroll to top
                 window.scrollTo({ top: 0, behavior: 'smooth' });
             })
             .catch(error => {
                 console.error('Error:', error);
+                
+                // Update top message for error
                 document.getElementById('successMessage').innerHTML = 
-                    '<strong>❌ ERROR:</strong> ' + error.message;
+                    '<strong>❌ ERREUR:</strong> ' + error.message;
                 document.getElementById('successMessage').className = 'alert alert-error';
                 document.getElementById('successMessage').style.display = 'block';
+                
+                // Hide bottom message on error
+                document.getElementById('bottomSuccessMessage').style.display = 'none';
             })
             .finally(() => {
                 // Reset button
