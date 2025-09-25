@@ -231,8 +231,37 @@
             border: 1px solid #f5c6cb;
         }
 
+        .doctor-info {
+            background: #e8f4fd;
+            border: 1px solid #bee5eb;
+            border-radius: 8px;
+            padding: 15px;
+            margin-bottom: 20px;
+            text-align: center;
+        }
+
+        .doctor-info h3 {
+            color: #2c3e50;
+            margin-bottom: 5px;
+        }
+
+        .doctor-info p {
+            color: #6c757d;
+            margin: 0;
+        }
+
         .hidden {
             display: none;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 40px;
+        }
+
+        .loading p {
+            color: #6c757d;
+            margin-top: 10px;
         }
 
         @media (max-width: 768px) {
@@ -258,8 +287,19 @@
 </head>
 <body>
     <div class="container">
+        <!-- Loading Screen -->
+        <div id="loadingScreen" class="loading">
+            <div class="header">
+                <h1>🔄 Loading...</h1>
+                <p>Initializing Dermatology Portal</p>
+            </div>
+            <div style="padding: 40px;">
+                <p>Loading doctor credentials...</p>
+            </div>
+        </div>
+
         <!-- Login Screen -->
-        <div id="loginScreen" class="login-screen">
+        <div id="loginScreen" class="login-screen hidden">
             <div class="header">
                 <h1>🔒 Restricted Access</h1>
                 <p>Dermatology Portal - Patient Assessment</p>
@@ -267,7 +307,7 @@
             <div style="padding: 40px;">
                 <h2>Enter access code</h2>
                 <div class="passcode-input">
-                    <input type="password" id="passcode" placeholder="Access code" maxlength="10">
+                    <input type="password" id="passcode" placeholder="Access code" maxlength="20">
                 </div>
                 <button onclick="login()" class="submit-btn">Enter</button>
                 <div id="loginError" class="alert alert-error hidden">
@@ -284,16 +324,20 @@
             </div>
 
             <div class="form-container">
+                <!-- Doctor Information Display -->
+                <div id="doctorInfo" class="doctor-info">
+                    <h3>👨‍⚕️ Authenticated Doctor</h3>
+                    <p id="doctorDetails">Loading doctor information...</p>
+                </div>
+
                 <div id="successMessage" class="alert alert-success hidden">
                     Data sent successfully! The report has been sent by email.
                 </div>
 
                 <form id="patientForm" onsubmit="submitForm(event)">
-                    <!-- Doctor Information -->
-                    <div class="form-group">
-                        <label for="doctorName">Doctor Name *</label>
-                        <input type="text" id="doctorName" name="doctorName" required>
-                    </div>
+                    <!-- Hidden doctor fields -->
+                    <input type="hidden" id="doctorName" name="doctorName">
+                    <input type="hidden" id="doctorEmail" name="doctorEmail">
 
                     <!-- Patient Information -->
                     <div class="form-group">
@@ -402,9 +446,6 @@
                         </div>
                     </div>
 
-                    <!-- Hidden email field -->
-                    <input type="hidden" id="recipientEmail" name="recipientEmail" value="jean@ruwet.com">
-
                     <button type="submit" class="submit-btn">📧 Send Report by Email</button>
                 </form>
             </div>
@@ -413,17 +454,81 @@
 
     <script>
         const WEBHOOK_URL = 'https://hook.eu2.make.com/5foiew3chncbqcux79xy1iuc79kju9r1';
-        const PASSCODE = "DERMA2025";
+        let doctorsData = null;
+        let currentDoctor = null;
+
+        // Load doctors configuration on page load
+        async function loadDoctorsConfig() {
+            try {
+                const response = await fetch('doctors.json');
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                doctorsData = await response.json();
+                console.log('Doctors configuration loaded successfully');
+                showLoginScreen();
+            } catch (error) {
+                console.error('Error loading doctors configuration:', error);
+                // Fallback to embedded credentials if doctors.json is not available
+                doctorsData = {
+                    doctors: [{
+                        id: "fallback_doctor",
+                        name: "Dr. Jean Ruwet",
+                        email: "jean@ruwet.com",
+                        accessToken: "DERMA2025",
+                        active: true
+                    }],
+                    adminTokens: ["ADMIN2025", "BYPASS"]
+                };
+                showLoginScreen();
+            }
+        }
+
+        function showLoginScreen() {
+            document.getElementById('loadingScreen').style.display = 'none';
+            document.getElementById('loginScreen').style.display = 'block';
+        }
 
         function login() {
             const input = document.getElementById('passcode').value.trim();
-            if (input === PASSCODE || input === 'BYPASS' || input === '') {
-                document.getElementById('loginScreen').style.display = 'none';
-                document.getElementById('mainApp').style.display = 'block';
+            
+            if (!input) {
+                document.getElementById('loginError').textContent = 'Please enter an access code.';
+                document.getElementById('loginError').style.display = 'block';
+                return;
+            }
+
+            // Check admin tokens
+            if (doctorsData.adminTokens && doctorsData.adminTokens.includes(input)) {
+                // Admin access - use default doctor
+                currentDoctor = doctorsData.doctors.find(d => d.active) || doctorsData.doctors[0];
+                showMainApp();
+                return;
+            }
+
+            // Check doctor tokens
+            currentDoctor = doctorsData.doctors.find(doctor => 
+                doctor.active && doctor.accessToken === input
+            );
+
+            if (currentDoctor) {
+                showMainApp();
             } else {
+                document.getElementById('loginError').textContent = 'Incorrect access code. Please try again.';
                 document.getElementById('loginError').style.display = 'block';
                 document.getElementById('passcode').value = '';
             }
+        }
+
+        function showMainApp() {
+            document.getElementById('loginScreen').style.display = 'none';
+            document.getElementById('mainApp').style.display = 'block';
+            
+            // Update doctor information
+            document.getElementById('doctorDetails').textContent = 
+                `${currentDoctor.name} (${currentDoctor.email})`;
+            document.getElementById('doctorName').value = currentDoctor.name;
+            document.getElementById('doctorEmail').value = currentDoctor.email;
         }
 
         function previewImage(input) {
@@ -493,9 +598,10 @@
             const formData = new FormData();
             
             // Add all form fields
-            formData.append('recipient_email', 'jean@ruwet.com');
-            formData.append('subject', 'Dermatological Assessment - Patient: ' + data.patientId);
+            formData.append('recipient_email', currentDoctor.email);
+            formData.append('subject', `Dermatological Assessment - Patient: ${data.patientId}`);
             formData.append('doctor_name', data.doctorName);
+            formData.append('doctor_email', data.doctorEmail);
             formData.append('patient_id', data.patientId);
             formData.append('patient_age', data.patientAge);
             formData.append('patient_gender', data.patientGender);
@@ -527,7 +633,7 @@
             
             fetch(WEBHOOK_URL, {
                 method: 'POST',
-                body: formData // Don't set Content-Type header - let browser set it
+                body: formData
             })
             .then(response => {
                 console.log('Response status:', response.status);
@@ -540,7 +646,7 @@
             .then(result => {
                 console.log('Success:', result);
                 document.getElementById('successMessage').innerHTML = 
-                    '<strong>✅ EMAIL SENT SUCCESSFULLY!</strong><br>Report sent to jean@ruwet.com<br><small>Image file uploaded directly</small>';
+                    `<strong>✅ EMAIL SENT SUCCESSFULLY!</strong><br>Report sent to ${currentDoctor.email}<br><small>Image file uploaded directly</small>`;
                 document.getElementById('successMessage').className = 'alert alert-success';
                 document.getElementById('successMessage').style.display = 'block';
                 document.getElementById('patientForm').reset();
@@ -561,8 +667,12 @@
             });
         }
 
-        // Allow Enter key on passcode
+        // Event listeners
         document.addEventListener('DOMContentLoaded', function() {
+            // Load doctors configuration on page load
+            loadDoctorsConfig();
+            
+            // Allow Enter key on passcode
             document.getElementById('passcode').addEventListener('keypress', function(e) {
                 if (e.key === 'Enter') {
                     login();
