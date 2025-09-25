@@ -487,18 +487,15 @@
                 showLoginScreen();
             } catch (error) {
                 console.error('Error loading doctors configuration:', error);
-                // Fallback to embedded credentials if doctors.json is not available
-                doctorsData = {
-                    doctors: [{
-                        id: "fallback_doctor",
-                        name: "Dr. Jean Ruwet",
-                        email: "jean@ruwet.com",
-                        accessToken: "DERMA2025",
-                        active: true
-                    }],
-                    adminTokens: ["ADMIN2025", "BYPASS"]
-                };
-                showLoginScreen();
+                document.getElementById('loadingScreen').innerHTML = `
+                    <div class="header">
+                        <h1>❌ Configuration Error</h1>
+                        <p>Unable to load doctors.json file</p>
+                    </div>
+                    <div style="padding: 40px;">
+                        <p>Please ensure doctors.json is available in the same directory.</p>
+                    </div>
+                `;
             }
         }
 
