@@ -15,6 +15,13 @@
       "active": true
     },
     {
+      "id": "dr_D.Kurrupu",
+      "name": "Dr. Dulanji Kurrupu",
+      "email": "dkurrupu@lilly.com",
+      "accessToken": "TEST143",
+      "active": true
+    },
+    {
       "id": "dr_johnson",
       "name": "Dr. Michael Johnson",
       "email": "m.johnson@skincare.org",
