@@ -8,6 +8,13 @@
       "active": true
     },
     {
+      "id": "dr_dupont",
+      "name": "Dr. Jacques Dupont",
+      "email": "scestlej@jsnn.com",
+      "accessToken": "TRUMP2025",
+      "active": true
+    },
+    {
       "id": "dr_smith",
       "name": "Dr. Sarah Smith",
       "email": "sarah.smith@dermaclinic.com",
