@@ -82,20 +82,88 @@
             min-height: 100px;
         }
 
-        .file-upload {
-            position: relative;
-            display: inline-block;
-            width: 100%;
+        .images-container {
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+
+        .image-slot {
+            border: 2px dashed #e0e6ed;
+            border-radius: 8px;
+            padding: 15px;
+            background: #f8f9fa;
+        }
+
+        .image-slot.has-image {
+            border-color: #27ae60;
+            background: #e8f5e9;
+        }
+
+        .slot-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 10px;
+        }
+
+        .slot-title {
+            font-weight: 600;
+            color: #2c3e50;
+            font-size: 14px;
+        }
+
+        .remove-image-btn {
+            background: #e74c3c;
+            color: white;
+            border: none;
+            padding: 5px 12px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 12px;
+            transition: all 0.3s ease;
+        }
+
+        .remove-image-btn:hover {
+            background: #c0392b;
         }
 
         .upload-options {
             display: grid;
             grid-template-columns: 1fr 1fr;
-            gap: 15px;
+            gap: 10px;
+            margin-bottom: 10px;
         }
 
-        .upload-option {
+        .file-upload {
+            position: relative;
+        }
+
+        .file-upload input[type=file] {
+            position: absolute;
+            opacity: 0;
             width: 100%;
+            height: 100%;
+            cursor: pointer;
+            z-index: 1;
+        }
+
+        .file-upload-label {
+            display: block;
+            padding: 15px 10px;
+            border: 2px dashed #3498db;
+            border-radius: 8px;
+            text-align: center;
+            color: #3498db;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            background: white;
+            font-size: 13px;
+        }
+
+        .file-upload-label:hover {
+            background: #e3f2fd;
+            border-color: #2980b9;
         }
 
         .mobile-only {
@@ -108,41 +176,16 @@
             }
         }
 
-        .file-upload input[type=file] {
-            position: absolute;
-            opacity: 0;
-            width: 100%;
-            height: 100%;
-            cursor: pointer;
-        }
-
-        .file-upload-label {
-            display: block;
-            padding: 20px;
-            border: 2px dashed #3498db;
-            border-radius: 8px;
-            text-align: center;
-            color: #3498db;
-            cursor: pointer;
-            transition: all 0.3s ease;
-            background: #f8f9fa;
-        }
-
-        .file-upload-label:hover {
-            background: #e3f2fd;
-            border-color: #2980b9;
-        }
-
         .image-preview {
-            margin-top: 15px;
+            margin-top: 10px;
             text-align: center;
         }
 
         .image-preview img {
-            max-width: 300px;
-            max-height: 300px;
+            max-width: 100%;
+            max-height: 200px;
             border-radius: 8px;
-            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+            box-shadow: 0 3px 10px rgba(0,0,0,0.1);
         }
 
         .questions-section {
@@ -386,24 +429,10 @@
                     </div>
 
                     <div class="form-group">
-                        <label>Skin Condition Image *</label>
-                        <div class="upload-options">
-                            <div class="file-upload upload-option">
-                                <input type="file" id="skinImage" name="skinImage" accept="image/*" required onchange="previewImage(this)">
-                                <label for="skinImage" class="file-upload-label">
-                                    📷 Select Image<br>
-                                    <small>From gallery</small>
-                                </label>
-                            </div>
-                            <div class="file-upload upload-option mobile-only">
-                                <input type="file" id="cameraCapture" accept="image/*" capture="environment" onchange="handleCameraCapture(this)">
-                                <label for="cameraCapture" class="file-upload-label">
-                                    📸 Take Photo<br>
-                                    <small>Use camera</small>
-                                </label>
-                            </div>
+                        <label>Skin Condition Images (Up to 3) *</label>
+                        <div class="images-container" id="imagesContainer">
+                            <!-- Image slots will be added here dynamically -->
                         </div>
-                        <div id="imagePreview" class="image-preview"></div>
                     </div>
 
                     <div class="questions-section">
@@ -491,8 +520,10 @@
 
     <script>
         const WEBHOOK_URL = 'https://hook.eu2.make.com/5foiew3chncbqcux79xy1iuc79kju9r1';
+        const MAX_IMAGES = 3;
         let doctorsData = null;
         let currentDoctor = null;
+        let imageFiles = [];
 
         async function loadDoctorsConfig() {
             try {
@@ -558,37 +589,114 @@
                 `${currentDoctor.name} (${currentDoctor.email})`;
             document.getElementById('doctorName').value = currentDoctor.name;
             document.getElementById('doctorEmail').value = currentDoctor.email;
+            
+            // Initialize image slots
+            initializeImageSlots();
         }
 
-        function previewImage(input) {
-            const preview = document.getElementById('imagePreview');
-            if (input.files && input.files[0]) {
-                const reader = new FileReader();
-                reader.onload = function(e) {
-                    preview.innerHTML = '<img src="' + e.target.result + '" alt="Preview">';
-                };
-                reader.readAsDataURL(input.files[0]);
+        function initializeImageSlots() {
+            const container = document.getElementById('imagesContainer');
+            container.innerHTML = '';
+            
+            for (let i = 0; i < MAX_IMAGES; i++) {
+                const slotDiv = document.createElement('div');
+                slotDiv.className = 'image-slot';
+                slotDiv.id = `imageSlot${i}`;
                 
-                const otherInput = input.id === 'skinImage' ? document.getElementById('cameraCapture') : document.getElementById('skinImage');
-                const mainInput = document.getElementById('skinImage');
+                slotDiv.innerHTML = `
+                    <div class="slot-header">
+                        <span class="slot-title">Image ${i + 1}${i === 0 ? ' *' : ' (Optional)'}</span>
+                        <button type="button" class="remove-image-btn hidden" onclick="removeImage(${i})">✕ Remove</button>
+                    </div>
+                    <div class="upload-options">
+                        <div class="file-upload">
+                            <input type="file" id="imageFile${i}" accept="image/*" ${i === 0 ? 'required' : ''} onchange="handleImageSelect(${i}, this)">
+                            <label for="imageFile${i}" class="file-upload-label">
+                                📷 Select<br>
+                                <small>From gallery</small>
+                            </label>
+                        </div>
+                        <div class="file-upload mobile-only">
+                            <input type="file" id="cameraFile${i}" accept="image/*" capture="environment" onchange="handleCameraCapture(${i}, this)">
+                            <label for="cameraFile${i}" class="file-upload-label">
+                                📸 Take Photo<br>
+                                <small>Use camera</small>
+                            </label>
+                        </div>
+                    </div>
+                    <div id="imagePreview${i}" class="image-preview"></div>
+                `;
                 
-                if (input.id === 'cameraCapture') {
-                    const dataTransfer = new DataTransfer();
-                    dataTransfer.items.add(input.files[0]);
-                    mainInput.files = dataTransfer.files;
-                }
-            } else {
-                preview.innerHTML = '';
+                container.appendChild(slotDiv);
             }
         }
 
-        function handleCameraCapture(input) {
-            previewImage(input);
+        function handleImageSelect(index, input) {
+            if (input.files && input.files[0]) {
+                imageFiles[index] = input.files[0];
+                previewImage(index, input.files[0]);
+                
+                // Sync camera input
+                const cameraInput = document.getElementById(`cameraFile${index}`);
+                const dataTransfer = new DataTransfer();
+                dataTransfer.items.add(input.files[0]);
+                cameraInput.files = dataTransfer.files;
+            }
+        }
+
+        function handleCameraCapture(index, input) {
+            if (input.files && input.files[0]) {
+                imageFiles[index] = input.files[0];
+                previewImage(index, input.files[0]);
+                
+                // Sync gallery input
+                const fileInput = document.getElementById(`imageFile${index}`);
+                const dataTransfer = new DataTransfer();
+                dataTransfer.items.add(input.files[0]);
+                fileInput.files = dataTransfer.files;
+            }
+        }
+
+        function previewImage(index, file) {
+            const preview = document.getElementById(`imagePreview${index}`);
+            const slot = document.getElementById(`imageSlot${index}`);
+            const removeBtn = slot.querySelector('.remove-image-btn');
+            
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                preview.innerHTML = `<img src="${e.target.result}" alt="Preview ${index + 1}">`;
+                slot.classList.add('has-image');
+                removeBtn.classList.remove('hidden');
+            };
+            reader.readAsDataURL(file);
+        }
+
+        function removeImage(index) {
+            imageFiles[index] = null;
+            
+            const slot = document.getElementById(`imageSlot${index}`);
+            const preview = document.getElementById(`imagePreview${index}`);
+            const fileInput = document.getElementById(`imageFile${index}`);
+            const cameraInput = document.getElementById(`cameraFile${index}`);
+            const removeBtn = slot.querySelector('.remove-image-btn');
+            
+            preview.innerHTML = '';
+            fileInput.value = '';
+            cameraInput.value = '';
+            slot.classList.remove('has-image');
+            removeBtn.classList.add('hidden');
         }
 
         function submitForm(e) {
             e.preventDefault();
             console.log('Form submitted!');
+            
+            // Check if at least one image is uploaded
+            const hasImage = imageFiles.some(file => file !== null && file !== undefined);
+            if (!hasImage) {
+                alert('Please upload at least one image.');
+                return;
+            }
             
             const submitBtn = document.querySelector('.submit-btn');
             const originalText = submitBtn.innerHTML;
@@ -615,26 +723,13 @@
                 symptoms.push(cb.value);
             });
             
-            const imageFile = document.getElementById('skinImage').files[0];
-            
-            if (imageFile) {
-                console.log('Processing image file...');
-                const reader = new FileReader();
-                reader.onload = function(e) {
-                    sendData(data, symptoms, e.target.result, submitBtn, originalText);
-                };
-                reader.readAsDataURL(imageFile);
-            } else {
-                sendData(data, symptoms, null, submitBtn, originalText);
-            }
+            sendData(data, symptoms, submitBtn, originalText);
         }
 
-        function sendData(data, symptoms, imageData, submitBtn, originalText) {
+        function sendData(data, symptoms, submitBtn, originalText) {
             console.log('Sending data to Make.com...');
             
             const timestamp = new Date();
-            const imageFile = document.getElementById('skinImage').files[0];
-            
             const formData = new FormData();
             
             formData.append('recipient_email', currentDoctor.email);
@@ -657,17 +752,22 @@
             formData.append('report_time', timestamp.toLocaleTimeString());
             formData.append('portal_source', 'Dermatology Portal');
             
-            if (imageFile) {
-                const filename = 'patient_' + data.patientId.replace(/[^a-zA-Z0-9]/g, '_') + '_lesion_' + timestamp.getTime() + '.' + imageFile.name.split('.').pop();
-                formData.append('image_file', imageFile, filename);
-                formData.append('image_attached', 'Yes');
-                formData.append('image_filename', filename);
-                formData.append('image_mime_type', imageFile.type);
-            } else {
-                formData.append('image_attached', 'No');
-            }
+            // Add all images
+            let imageCount = 0;
+            imageFiles.forEach((file, index) => {
+                if (file) {
+                    const filename = `patient_${data.patientId.replace(/[^a-zA-Z0-9]/g, '_')}_image${index + 1}_${timestamp.getTime()}.${file.name.split('.').pop()}`;
+                    formData.append(`image_file_${index + 1}`, file, filename);
+                    formData.append(`image_${index + 1}_filename`, filename);
+                    formData.append(`image_${index + 1}_mime_type`, file.type);
+                    imageCount++;
+                }
+            });
             
-            console.log('Sending FormData with actual file...');
+            formData.append('image_count', imageCount);
+            formData.append('images_attached', imageCount > 0 ? 'Yes' : 'No');
+            
+            console.log(`Sending FormData with ${imageCount} image(s)...`);
             
             fetch(WEBHOOK_URL, {
                 method: 'POST',
@@ -692,7 +792,8 @@
                 document.getElementById('bottomSuccessMessage').style.display = 'block';
                 
                 document.getElementById('patientForm').reset();
-                document.getElementById('imagePreview').innerHTML = '';
+                imageFiles = [];
+                initializeImageSlots();
                 
                 window.scrollTo({ top: 0, behavior: 'smooth' });
             })
