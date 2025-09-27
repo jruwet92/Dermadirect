@@ -88,6 +88,26 @@
             width: 100%;
         }
 
+        .upload-options {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+        }
+
+        .upload-option {
+            width: 100%;
+        }
+
+        .mobile-only {
+            display: none;
+        }
+
+        @media (max-width: 768px) {
+            .mobile-only {
+                display: block;
+            }
+        }
+
         .file-upload input[type=file] {
             position: absolute;
             opacity: 0;
@@ -264,7 +284,6 @@
             margin-top: 10px;
         }
 
-        /* Bottom confirmation message */
         .bottom-alert {
             padding: 20px;
             border-radius: 8px;
@@ -299,7 +318,6 @@
 </head>
 <body>
     <div class="container">
-        <!-- Loading Screen -->
         <div id="loadingScreen" class="loading">
             <div class="header">
                 <h1>🔄 Loading...</h1>
@@ -310,7 +328,6 @@
             </div>
         </div>
 
-        <!-- Login Screen -->
         <div id="loginScreen" class="login-screen hidden">
             <div class="header">
                 <h1>🔒 Restricted Access</h1>
@@ -328,7 +345,6 @@
             </div>
         </div>
 
-        <!-- Main Application -->
         <div id="mainApp" class="hidden">
             <div class="header">
                 <h1>🩺 Dermatology Portal</h1>
@@ -336,7 +352,6 @@
             </div>
 
             <div class="form-container">
-                <!-- Doctor Information Display -->
                 <div id="doctorInfo" class="doctor-info">
                     <h3>👨‍⚕️ Authenticated Doctor</h3>
                     <p id="doctorDetails">Loading doctor information...</p>
@@ -347,11 +362,9 @@
                 </div>
 
                 <form id="patientForm" onsubmit="submitForm(event)">
-                    <!-- Hidden doctor fields -->
                     <input type="hidden" id="doctorName" name="doctorName">
                     <input type="hidden" id="doctorEmail" name="doctorEmail">
 
-                    <!-- Patient Information -->
                     <div class="form-group">
                         <label for="patientId">Patient Identification *</label>
                         <input type="text" id="patientId" name="patientId" required placeholder="ID, SSN or other unique identifier">
@@ -372,20 +385,27 @@
                         </select>
                     </div>
 
-                    <!-- Image Upload -->
                     <div class="form-group">
                         <label>Skin Condition Image *</label>
-                        <div class="file-upload">
-                            <input type="file" id="skinImage" name="skinImage" accept="image/*" required onchange="previewImage(this)">
-                            <label for="skinImage" class="file-upload-label">
-                                📷 Click to select an image<br>
-                                <small>Accepted formats: JPG, PNG, JPEG</small>
-                            </label>
+                        <div class="upload-options">
+                            <div class="file-upload upload-option">
+                                <input type="file" id="skinImage" name="skinImage" accept="image/*" required onchange="previewImage(this)">
+                                <label for="skinImage" class="file-upload-label">
+                                    📷 Select Image<br>
+                                    <small>From gallery</small>
+                                </label>
+                            </div>
+                            <div class="file-upload upload-option mobile-only">
+                                <input type="file" id="cameraCapture" accept="image/*" capture="environment" onchange="handleCameraCapture(this)">
+                                <label for="cameraCapture" class="file-upload-label">
+                                    📸 Take Photo<br>
+                                    <small>Use camera</small>
+                                </label>
+                            </div>
                         </div>
                         <div id="imagePreview" class="image-preview"></div>
                     </div>
 
-                    <!-- Anamnesis Questions -->
                     <div class="questions-section">
                         <h3>📋 Dermatological Anamnesis</h3>
 
@@ -461,7 +481,6 @@
                     <button type="submit" class="submit-btn">📧 Send Report by Email</button>
                 </form>
 
-                <!-- Bottom confirmation message -->
                 <div id="bottomSuccessMessage" class="bottom-alert hidden">
                     <strong>✅ Votre demande a bien été transmise à notre dermatologue</strong><br><br>
                     Le cas de votre patient sera revu sous 24h et l'analyse vous sera transmise par email.
@@ -475,7 +494,6 @@
         let doctorsData = null;
         let currentDoctor = null;
 
-        // Load doctors configuration on page load
         async function loadDoctorsConfig() {
             try {
                 const response = await fetch('doctors.json');
@@ -513,15 +531,12 @@
                 return;
             }
 
-            // Check admin tokens
             if (doctorsData.adminTokens && doctorsData.adminTokens.includes(input)) {
-                // Admin access - use default doctor
                 currentDoctor = doctorsData.doctors.find(d => d.active) || doctorsData.doctors[0];
                 showMainApp();
                 return;
             }
 
-            // Check doctor tokens
             currentDoctor = doctorsData.doctors.find(doctor => 
                 doctor.active && doctor.accessToken === input
             );
@@ -539,7 +554,6 @@
             document.getElementById('loginScreen').style.display = 'none';
             document.getElementById('mainApp').style.display = 'block';
             
-            // Update doctor information
             document.getElementById('doctorDetails').textContent = 
                 `${currentDoctor.name} (${currentDoctor.email})`;
             document.getElementById('doctorName').value = currentDoctor.name;
@@ -554,16 +568,28 @@
                     preview.innerHTML = '<img src="' + e.target.result + '" alt="Preview">';
                 };
                 reader.readAsDataURL(input.files[0]);
+                
+                const otherInput = input.id === 'skinImage' ? document.getElementById('cameraCapture') : document.getElementById('skinImage');
+                const mainInput = document.getElementById('skinImage');
+                
+                if (input.id === 'cameraCapture') {
+                    const dataTransfer = new DataTransfer();
+                    dataTransfer.items.add(input.files[0]);
+                    mainInput.files = dataTransfer.files;
+                }
             } else {
                 preview.innerHTML = '';
             }
+        }
+
+        function handleCameraCapture(input) {
+            previewImage(input);
         }
 
         function submitForm(e) {
             e.preventDefault();
             console.log('Form submitted!');
             
-            // Show loading state
             const submitBtn = document.querySelector('.submit-btn');
             const originalText = submitBtn.innerHTML;
             submitBtn.innerHTML = '⏳ Sending...';
@@ -609,10 +635,8 @@
             const timestamp = new Date();
             const imageFile = document.getElementById('skinImage').files[0];
             
-            // Use FormData to send actual file + other data
             const formData = new FormData();
             
-            // Add all form fields
             formData.append('recipient_email', currentDoctor.email);
             formData.append('subject', `Dermatological Assessment - Patient: ${data.patientId}`);
             formData.append('doctor_name', data.doctorName);
@@ -633,7 +657,6 @@
             formData.append('report_time', timestamp.toLocaleTimeString());
             formData.append('portal_source', 'Dermatology Portal');
             
-            // Add the actual image file
             if (imageFile) {
                 const filename = 'patient_' + data.patientId.replace(/[^a-zA-Z0-9]/g, '_') + '_lesion_' + timestamp.getTime() + '.' + imageFile.name.split('.').pop();
                 formData.append('image_file', imageFile, filename);
@@ -661,47 +684,37 @@
             .then(result => {
                 console.log('Success:', result);
                 
-                // Update top success message
                 document.getElementById('successMessage').innerHTML = 
                     `<strong>✅ Votre demande a bien été transmise à notre dermatologue</strong><br>Le cas de votre patient sera revu sous 24h et l'analyse vous sera transmise par email.`;
                 document.getElementById('successMessage').className = 'alert alert-success';
                 document.getElementById('successMessage').style.display = 'block';
                 
-                // Show bottom success message
                 document.getElementById('bottomSuccessMessage').style.display = 'block';
                 
-                // Reset form
                 document.getElementById('patientForm').reset();
                 document.getElementById('imagePreview').innerHTML = '';
                 
-                // Scroll to top
                 window.scrollTo({ top: 0, behavior: 'smooth' });
             })
             .catch(error => {
                 console.error('Error:', error);
                 
-                // Update top message for error
                 document.getElementById('successMessage').innerHTML = 
                     '<strong>❌ ERREUR:</strong> ' + error.message;
                 document.getElementById('successMessage').className = 'alert alert-error';
                 document.getElementById('successMessage').style.display = 'block';
                 
-                // Hide bottom message on error
                 document.getElementById('bottomSuccessMessage').style.display = 'none';
             })
             .finally(() => {
-                // Reset button
                 submitBtn.innerHTML = originalText;
                 submitBtn.disabled = false;
             });
         }
 
-        // Event listeners
         document.addEventListener('DOMContentLoaded', function() {
-            // Load doctors configuration on page load
             loadDoctorsConfig();
             
-            // Allow Enter key on passcode
             document.getElementById('passcode').addEventListener('keypress', function(e) {
                 if (e.key === 'Enter') {
                     login();
