@@ -737,6 +737,125 @@
             }
         }
 
+        // ===== COLLAGE CREATION FUNCTIONS =====
+        
+        async function createImageCollage(images) {
+            return new Promise((resolve, reject) => {
+                try {
+                    // Filter out null/undefined images
+                    const validImages = images.filter(img => img !== null && img !== undefined);
+                    
+                    if (validImages.length === 0) {
+                        reject(new Error('No valid images'));
+                        return;
+                    }
+
+                    // If only one image, return it as-is
+                    if (validImages.length === 1) {
+                        resolve(validImages[0]);
+                        return;
+                    }
+
+                    // Calculate grid dimensions
+                    const numImages = validImages.length;
+                    const cols = Math.ceil(Math.sqrt(numImages));
+                    const rows = Math.ceil(numImages / cols);
+
+                    // Load all images first
+                    const imageElements = [];
+                    let loadedCount = 0;
+
+                    validImages.forEach((file, index) => {
+                        const img = new Image();
+                        const reader = new FileReader();
+
+                        reader.onload = function(e) {
+                            img.onload = function() {
+                                imageElements[index] = img;
+                                loadedCount++;
+
+                                // When all images are loaded, create collage
+                                if (loadedCount === validImages.length) {
+                                    createCollage(imageElements, cols, rows, resolve, reject);
+                                }
+                            };
+                            img.src = e.target.result;
+                        };
+
+                        reader.onerror = reject;
+                        reader.readAsDataURL(file);
+                    });
+
+                } catch (error) {
+                    reject(error);
+                }
+            });
+        }
+
+        function createCollage(images, cols, rows, resolve, reject) {
+            try {
+                // Find max dimensions
+                let maxWidth = 0;
+                let maxHeight = 0;
+                
+                images.forEach(img => {
+                    if (img.width > maxWidth) maxWidth = img.width;
+                    if (img.height > maxHeight) maxHeight = img.height;
+                });
+
+                // Create canvas
+                const canvas = document.createElement('canvas');
+                const ctx = canvas.getContext('2d');
+                
+                canvas.width = cols * maxWidth;
+                canvas.height = rows * maxHeight;
+
+                // Fill with white background
+                ctx.fillStyle = 'white';
+                ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+                // Draw images in grid
+                images.forEach((img, index) => {
+                    const row = Math.floor(index / cols);
+                    const col = index % cols;
+                    
+                    const x = col * maxWidth;
+                    const y = row * maxHeight;
+
+                    // Center the image in its cell
+                    const offsetX = (maxWidth - img.width) / 2;
+                    const offsetY = (maxHeight - img.height) / 2;
+
+                    ctx.drawImage(img, x + offsetX, y + offsetY);
+
+                    // Optional: Add border around each image
+                    ctx.strokeStyle = '#e0e0e0';
+                    ctx.lineWidth = 2;
+                    ctx.strokeRect(x, y, maxWidth, maxHeight);
+                });
+
+                // Convert canvas to blob
+                canvas.toBlob((blob) => {
+                    if (blob) {
+                        // Create a File object from the blob
+                        const collageFile = new File(
+                            [blob], 
+                            'collage.jpg', 
+                            { type: 'image/jpeg' }
+                        );
+                        resolve(collageFile);
+                    } else {
+                        reject(new Error('Failed to create collage blob'));
+                    }
+                }, 'image/jpeg', 0.95);
+
+            } catch (error) {
+                reject(error);
+            }
+        }
+
+        // ===== FORM SUBMISSION =====
+
         function submitForm(e) {
             e.preventDefault();
             console.log('Form submitted!');
@@ -776,7 +895,7 @@
             sendData(data, symptoms, submitBtn, originalText);
         }
 
-        function sendData(data, symptoms, submitBtn, originalText) {
+        async function sendData(data, symptoms, submitBtn, originalText) {
             console.log('Sending data to Make.com...');
             
             const timestamp = new Date();
@@ -802,55 +921,60 @@
             formData.append('report_time', timestamp.toLocaleTimeString());
             formData.append('portal_source', 'Dermatology Portal');
             
-            // Add all images
-            let imageCount = 0;
-            imageFiles.forEach((file, index) => {
-                if (file) {
-                    const filename = `patient_${data.patientId.replace(/[^a-zA-Z0-9]/g, '_')}_image${imageCount + 1}_${timestamp.getTime()}.${file.name.split('.').pop()}`;
-                    formData.append(`image_file_${imageCount + 1}`, file, filename);
-                    formData.append(`image_${imageCount + 1}_filename`, filename);
-                    formData.append(`image_${imageCount + 1}_mime_type`, file.type);
-                    imageCount++;
+            try {
+                // Create collage if multiple images, or use single image
+                const validImages = imageFiles.filter(file => file !== null && file !== undefined);
+                
+                if (validImages.length === 0) {
+                    throw new Error('No images to send');
                 }
-            });
-            
-            formData.append('image_count', imageCount);
-            formData.append('images_attached', imageCount > 0 ? 'Yes' : 'No');
-            
-            console.log(`Sending FormData with ${imageCount} image(s)...`);
-            
-            fetch(WEBHOOK_URL, {
-                method: 'POST',
-                body: formData
-            })
-            .then(response => {
+
+                console.log(`Creating collage from ${validImages.length} image(s)...`);
+                const imageToSend = await createImageCollage(imageFiles);
+                
+                const filename = `patient_${data.patientId.replace(/[^a-zA-Z0-9]/g, '_')}_${validImages.length > 1 ? 'collage' : 'image'}_${timestamp.getTime()}.jpg`;
+                
+                formData.append('image_file', imageToSend, filename);
+                formData.append('image_filename', filename);
+                formData.append('image_mime_type', 'image/jpeg');
+                formData.append('image_count', validImages.length);
+                formData.append('is_collage', validImages.length > 1 ? 'Yes' : 'No');
+                formData.append('images_attached', 'Yes');
+                
+                console.log(`Sending ${validImages.length > 1 ? 'collage' : 'single image'}...`);
+                
+                // Send to Make.com
+                const response = await fetch(WEBHOOK_URL, {
+                    method: 'POST',
+                    body: formData
+                });
+
                 console.log('Response status:', response.status);
+                
                 if (response.ok) {
-                    return response.text();
+                    const result = await response.text();
+                    console.log('Success:', result);
+                    
+                    document.getElementById('successMessage').innerHTML = 
+                        `<strong>✅ Votre demande a bien été transmise à notre dermatologue</strong><br>Le cas de votre patient sera revu sous 24h et l'analyse vous sera transmise par email.`;
+                    document.getElementById('successMessage').className = 'alert alert-success';
+                    document.getElementById('successMessage').style.display = 'block';
+                    
+                    document.getElementById('bottomSuccessMessage').style.display = 'block';
+                    
+                    document.getElementById('patientForm').reset();
+                    imageFiles = [];
+                    imageSlotCount = 0;
+                    document.getElementById('imagesContainer').innerHTML = '';
+                    createImageSlot(0);
+                    document.getElementById('addImageBtn').classList.add('hidden');
+                    
+                    window.scrollTo({ top: 0, behavior: 'smooth' });
                 } else {
                     throw new Error('HTTP ' + response.status + ': ' + response.statusText);
                 }
-            })
-            .then(result => {
-                console.log('Success:', result);
                 
-                document.getElementById('successMessage').innerHTML = 
-                    `<strong>✅ Votre demande a bien été transmise à notre dermatologue</strong><br>Le cas de votre patient sera revu sous 24h et l'analyse vous sera transmise par email.`;
-                document.getElementById('successMessage').className = 'alert alert-success';
-                document.getElementById('successMessage').style.display = 'block';
-                
-                document.getElementById('bottomSuccessMessage').style.display = 'block';
-                
-                document.getElementById('patientForm').reset();
-                imageFiles = [];
-                imageSlotCount = 0;
-                document.getElementById('imagesContainer').innerHTML = '';
-                createImageSlot(0);
-                document.getElementById('addImageBtn').classList.add('hidden');
-                
-                window.scrollTo({ top: 0, behavior: 'smooth' });
-            })
-            .catch(error => {
+            } catch (error) {
                 console.error('Error:', error);
                 
                 document.getElementById('successMessage').innerHTML = 
@@ -859,11 +983,10 @@
                 document.getElementById('successMessage').style.display = 'block';
                 
                 document.getElementById('bottomSuccessMessage').style.display = 'none';
-            })
-            .finally(() => {
+            } finally {
                 submitBtn.innerHTML = originalText;
                 submitBtn.disabled = false;
-            });
+            }
         }
 
         document.addEventListener('DOMContentLoaded', function() {
