@@ -188,6 +188,33 @@
             box-shadow: 0 3px 10px rgba(0,0,0,0.1);
         }
 
+        .add-image-btn {
+            background: #3498db;
+            color: white;
+            border: none;
+            padding: 12px 20px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 600;
+            transition: all 0.3s ease;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            margin-top: 10px;
+        }
+
+        .add-image-btn:hover {
+            background: #2980b9;
+            transform: translateY(-1px);
+        }
+
+        .add-image-btn:disabled {
+            background: #95a5a6;
+            cursor: not-allowed;
+            transform: none;
+        }
+
         .questions-section {
             background: #f8f9fa;
             padding: 25px;
@@ -429,10 +456,13 @@
                     </div>
 
                     <div class="form-group">
-                        <label>Skin Condition Images (Up to 3) *</label>
+                        <label>Skin Condition Images (Max 3) *</label>
                         <div class="images-container" id="imagesContainer">
                             <!-- Image slots will be added here dynamically -->
                         </div>
+                        <button type="button" id="addImageBtn" class="add-image-btn hidden" onclick="addImageSlot()">
+                            ➕ Add another picture
+                        </button>
                     </div>
 
                     <div class="questions-section">
@@ -524,6 +554,7 @@
         let doctorsData = null;
         let currentDoctor = null;
         let imageFiles = [];
+        let imageSlotCount = 0;
 
         async function loadDoctorsConfig() {
             try {
@@ -590,45 +621,43 @@
             document.getElementById('doctorName').value = currentDoctor.name;
             document.getElementById('doctorEmail').value = currentDoctor.email;
             
-            // Initialize image slots
-            initializeImageSlots();
+            // Initialize first image slot
+            createImageSlot(0);
         }
 
-        function initializeImageSlots() {
+        function createImageSlot(index) {
             const container = document.getElementById('imagesContainer');
-            container.innerHTML = '';
             
-            for (let i = 0; i < MAX_IMAGES; i++) {
-                const slotDiv = document.createElement('div');
-                slotDiv.className = 'image-slot';
-                slotDiv.id = `imageSlot${i}`;
-                
-                slotDiv.innerHTML = `
-                    <div class="slot-header">
-                        <span class="slot-title">Image ${i + 1}${i === 0 ? ' *' : ' (Optional)'}</span>
-                        <button type="button" class="remove-image-btn hidden" onclick="removeImage(${i})">✕ Remove</button>
+            const slotDiv = document.createElement('div');
+            slotDiv.className = 'image-slot';
+            slotDiv.id = `imageSlot${index}`;
+            
+            slotDiv.innerHTML = `
+                <div class="slot-header">
+                    <span class="slot-title">Image ${index + 1}${index === 0 ? ' *' : ''}</span>
+                    ${index > 0 ? `<button type="button" class="remove-image-btn" onclick="removeImageSlot(${index})">✕ Remove</button>` : ''}
+                </div>
+                <div class="upload-options">
+                    <div class="file-upload">
+                        <input type="file" id="imageFile${index}" accept="image/*" ${index === 0 ? 'required' : ''} onchange="handleImageSelect(${index}, this)">
+                        <label for="imageFile${index}" class="file-upload-label">
+                            📷 Select<br>
+                            <small>From gallery</small>
+                        </label>
                     </div>
-                    <div class="upload-options">
-                        <div class="file-upload">
-                            <input type="file" id="imageFile${i}" accept="image/*" ${i === 0 ? 'required' : ''} onchange="handleImageSelect(${i}, this)">
-                            <label for="imageFile${i}" class="file-upload-label">
-                                📷 Select<br>
-                                <small>From gallery</small>
-                            </label>
-                        </div>
-                        <div class="file-upload mobile-only">
-                            <input type="file" id="cameraFile${i}" accept="image/*" capture="environment" onchange="handleCameraCapture(${i}, this)">
-                            <label for="cameraFile${i}" class="file-upload-label">
-                                📸 Take Photo<br>
-                                <small>Use camera</small>
-                            </label>
-                        </div>
+                    <div class="file-upload mobile-only">
+                        <input type="file" id="cameraFile${index}" accept="image/*" capture="environment" onchange="handleCameraCapture(${index}, this)">
+                        <label for="cameraFile${index}" class="file-upload-label">
+                            📸 Take Photo<br>
+                            <small>Use camera</small>
+                        </label>
                     </div>
-                    <div id="imagePreview${i}" class="image-preview"></div>
-                `;
-                
-                container.appendChild(slotDiv);
-            }
+                </div>
+                <div id="imagePreview${index}" class="image-preview"></div>
+            `;
+            
+            container.appendChild(slotDiv);
+            imageSlotCount++;
         }
 
         function handleImageSelect(index, input) {
@@ -638,9 +667,16 @@
                 
                 // Sync camera input
                 const cameraInput = document.getElementById(`cameraFile${index}`);
-                const dataTransfer = new DataTransfer();
-                dataTransfer.items.add(input.files[0]);
-                cameraInput.files = dataTransfer.files;
+                if (cameraInput) {
+                    const dataTransfer = new DataTransfer();
+                    dataTransfer.items.add(input.files[0]);
+                    cameraInput.files = dataTransfer.files;
+                }
+                
+                // Show "Add another picture" button if this is first image and we haven't reached max
+                if (index === 0 && imageSlotCount < MAX_IMAGES) {
+                    document.getElementById('addImageBtn').classList.remove('hidden');
+                }
             }
         }
 
@@ -651,40 +687,54 @@
                 
                 // Sync gallery input
                 const fileInput = document.getElementById(`imageFile${index}`);
-                const dataTransfer = new DataTransfer();
-                dataTransfer.items.add(input.files[0]);
-                fileInput.files = dataTransfer.files;
+                if (fileInput) {
+                    const dataTransfer = new DataTransfer();
+                    dataTransfer.items.add(input.files[0]);
+                    fileInput.files = dataTransfer.files;
+                }
+                
+                // Show "Add another picture" button if this is first image and we haven't reached max
+                if (index === 0 && imageSlotCount < MAX_IMAGES) {
+                    document.getElementById('addImageBtn').classList.remove('hidden');
+                }
             }
         }
 
         function previewImage(index, file) {
             const preview = document.getElementById(`imagePreview${index}`);
             const slot = document.getElementById(`imageSlot${index}`);
-            const removeBtn = slot.querySelector('.remove-image-btn');
             
             const reader = new FileReader();
             reader.onload = function(e) {
                 preview.innerHTML = `<img src="${e.target.result}" alt="Preview ${index + 1}">`;
                 slot.classList.add('has-image');
-                removeBtn.classList.remove('hidden');
             };
             reader.readAsDataURL(file);
         }
 
-        function removeImage(index) {
-            imageFiles[index] = null;
-            
+        function addImageSlot() {
+            if (imageSlotCount < MAX_IMAGES) {
+                createImageSlot(imageSlotCount);
+                
+                // Hide button if we've reached max
+                if (imageSlotCount >= MAX_IMAGES) {
+                    document.getElementById('addImageBtn').classList.add('hidden');
+                }
+            }
+        }
+
+        function removeImageSlot(index) {
             const slot = document.getElementById(`imageSlot${index}`);
-            const preview = document.getElementById(`imagePreview${index}`);
-            const fileInput = document.getElementById(`imageFile${index}`);
-            const cameraInput = document.getElementById(`cameraFile${index}`);
-            const removeBtn = slot.querySelector('.remove-image-btn');
-            
-            preview.innerHTML = '';
-            fileInput.value = '';
-            cameraInput.value = '';
-            slot.classList.remove('has-image');
-            removeBtn.classList.add('hidden');
+            if (slot) {
+                slot.remove();
+                imageFiles[index] = null;
+                imageSlotCount--;
+                
+                // Show add button again if under max
+                if (imageSlotCount < MAX_IMAGES && imageFiles[0]) {
+                    document.getElementById('addImageBtn').classList.remove('hidden');
+                }
+            }
         }
 
         function submitForm(e) {
@@ -756,10 +806,10 @@
             let imageCount = 0;
             imageFiles.forEach((file, index) => {
                 if (file) {
-                    const filename = `patient_${data.patientId.replace(/[^a-zA-Z0-9]/g, '_')}_image${index + 1}_${timestamp.getTime()}.${file.name.split('.').pop()}`;
-                    formData.append(`image_file_${index + 1}`, file, filename);
-                    formData.append(`image_${index + 1}_filename`, filename);
-                    formData.append(`image_${index + 1}_mime_type`, file.type);
+                    const filename = `patient_${data.patientId.replace(/[^a-zA-Z0-9]/g, '_')}_image${imageCount + 1}_${timestamp.getTime()}.${file.name.split('.').pop()}`;
+                    formData.append(`image_file_${imageCount + 1}`, file, filename);
+                    formData.append(`image_${imageCount + 1}_filename`, filename);
+                    formData.append(`image_${imageCount + 1}_mime_type`, file.type);
                     imageCount++;
                 }
             });
@@ -793,7 +843,10 @@
                 
                 document.getElementById('patientForm').reset();
                 imageFiles = [];
-                initializeImageSlots();
+                imageSlotCount = 0;
+                document.getElementById('imagesContainer').innerHTML = '';
+                createImageSlot(0);
+                document.getElementById('addImageBtn').classList.add('hidden');
                 
                 window.scrollTo({ top: 0, behavior: 'smooth' });
             })
