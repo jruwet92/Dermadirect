@@ -52,6 +52,17 @@
             margin-bottom: 25px;
         }
 
+        .form-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+            margin-bottom: 25px;
+        }
+
+        .form-row .form-group {
+            margin-bottom: 0;
+        }
+
         label {
             display: block;
             margin-bottom: 8px;
@@ -173,6 +184,15 @@
         @media (max-width: 768px) {
             .mobile-only {
                 display: block;
+            }
+            
+            .form-row {
+                grid-template-columns: 1fr;
+                gap: 25px;
+            }
+            
+            .form-row .form-group {
+                margin-bottom: 0;
             }
         }
 
@@ -435,24 +455,31 @@
                     <input type="hidden" id="doctorName" name="doctorName">
                     <input type="hidden" id="doctorEmail" name="doctorEmail">
 
-                    <div class="form-group">
-                        <label for="patientId">Patient Identification *</label>
-                        <input type="text" id="patientId" name="patientId" required placeholder="ID, SSN or other unique identifier">
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="patientId">Patient Identification *</label>
+                            <input type="text" id="patientId" name="patientId" required placeholder="ID, SSN or other identifier">
+                        </div>
+                        <div class="form-group">
+                            <label for="patientEmail">Patient Email *</label>
+                            <input type="email" id="patientEmail" name="patientEmail" required placeholder="patient@example.com">
+                        </div>
                     </div>
 
-                    <div class="form-group">
-                        <label for="patientAge">Patient Age *</label>
-                        <input type="number" id="patientAge" name="patientAge" min="0" max="120" required>
-                    </div>
-
-                    <div class="form-group">
-                        <label for="patientGender">Patient Gender *</label>
-                        <select id="patientGender" name="patientGender" required>
-                            <option value="">Select...</option>
-                            <option value="male">Male</option>
-                            <option value="female">Female</option>
-                            <option value="other">Other</option>
-                        </select>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="patientAge">Patient Age *</label>
+                            <input type="number" id="patientAge" name="patientAge" min="0" max="120" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="patientGender">Patient Gender *</label>
+                            <select id="patientGender" name="patientGender" required>
+                                <option value="">Select...</option>
+                                <option value="male">Male</option>
+                                <option value="female">Female</option>
+                                <option value="other">Other</option>
+                            </select>
+                        </div>
                     </div>
 
                     <div class="form-group">
@@ -621,7 +648,6 @@
             document.getElementById('doctorName').value = currentDoctor.name;
             document.getElementById('doctorEmail').value = currentDoctor.email;
             
-            // Initialize first image slot
             createImageSlot(0);
         }
 
@@ -665,7 +691,6 @@
                 imageFiles[index] = input.files[0];
                 previewImage(index, input.files[0]);
                 
-                // Sync camera input
                 const cameraInput = document.getElementById(`cameraFile${index}`);
                 if (cameraInput) {
                     const dataTransfer = new DataTransfer();
@@ -673,7 +698,6 @@
                     cameraInput.files = dataTransfer.files;
                 }
                 
-                // Show "Add another picture" button if this is first image and we haven't reached max
                 if (index === 0 && imageSlotCount < MAX_IMAGES) {
                     document.getElementById('addImageBtn').classList.remove('hidden');
                 }
@@ -685,7 +709,6 @@
                 imageFiles[index] = input.files[0];
                 previewImage(index, input.files[0]);
                 
-                // Sync gallery input
                 const fileInput = document.getElementById(`imageFile${index}`);
                 if (fileInput) {
                     const dataTransfer = new DataTransfer();
@@ -693,7 +716,6 @@
                     fileInput.files = dataTransfer.files;
                 }
                 
-                // Show "Add another picture" button if this is first image and we haven't reached max
                 if (index === 0 && imageSlotCount < MAX_IMAGES) {
                     document.getElementById('addImageBtn').classList.remove('hidden');
                 }
@@ -716,7 +738,6 @@
             if (imageSlotCount < MAX_IMAGES) {
                 createImageSlot(imageSlotCount);
                 
-                // Hide button if we've reached max
                 if (imageSlotCount >= MAX_IMAGES) {
                     document.getElementById('addImageBtn').classList.add('hidden');
                 }
@@ -730,19 +751,15 @@
                 imageFiles[index] = null;
                 imageSlotCount--;
                 
-                // Show add button again if under max
                 if (imageSlotCount < MAX_IMAGES && imageFiles[0]) {
                     document.getElementById('addImageBtn').classList.remove('hidden');
                 }
             }
         }
 
-        // ===== COLLAGE CREATION FUNCTIONS =====
-        
         async function createImageCollage(images) {
             return new Promise((resolve, reject) => {
                 try {
-                    // Filter out null/undefined images
                     const validImages = images.filter(img => img !== null && img !== undefined);
                     
                     if (validImages.length === 0) {
@@ -750,18 +767,15 @@
                         return;
                     }
 
-                    // If only one image, return it as-is
                     if (validImages.length === 1) {
                         resolve(validImages[0]);
                         return;
                     }
 
-                    // Calculate grid dimensions
                     const numImages = validImages.length;
                     const cols = Math.ceil(Math.sqrt(numImages));
                     const rows = Math.ceil(numImages / cols);
 
-                    // Load all images first
                     const imageElements = [];
                     let loadedCount = 0;
 
@@ -774,7 +788,6 @@
                                 imageElements[index] = img;
                                 loadedCount++;
 
-                                // When all images are loaded, create collage
                                 if (loadedCount === validImages.length) {
                                     createCollage(imageElements, cols, rows, resolve, reject);
                                 }
@@ -794,7 +807,6 @@
 
         function createCollage(images, cols, rows, resolve, reject) {
             try {
-                // Find max dimensions
                 let maxWidth = 0;
                 let maxHeight = 0;
                 
@@ -803,18 +815,15 @@
                     if (img.height > maxHeight) maxHeight = img.height;
                 });
 
-                // Create canvas
                 const canvas = document.createElement('canvas');
                 const ctx = canvas.getContext('2d');
                 
                 canvas.width = cols * maxWidth;
                 canvas.height = rows * maxHeight;
 
-                // Fill with white background
                 ctx.fillStyle = 'white';
                 ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-                // Draw images in grid
                 images.forEach((img, index) => {
                     const row = Math.floor(index / cols);
                     const col = index % cols;
@@ -822,22 +831,18 @@
                     const x = col * maxWidth;
                     const y = row * maxHeight;
 
-                    // Center the image in its cell
                     const offsetX = (maxWidth - img.width) / 2;
                     const offsetY = (maxHeight - img.height) / 2;
 
                     ctx.drawImage(img, x + offsetX, y + offsetY);
 
-                    // Optional: Add border around each image
                     ctx.strokeStyle = '#e0e0e0';
                     ctx.lineWidth = 2;
                     ctx.strokeRect(x, y, maxWidth, maxHeight);
                 });
 
-                // Convert canvas to blob
                 canvas.toBlob((blob) => {
                     if (blob) {
-                        // Create a File object from the blob
                         const collageFile = new File(
                             [blob], 
                             'collage.jpg', 
@@ -854,13 +859,10 @@
             }
         }
 
-        // ===== FORM SUBMISSION =====
-
         function submitForm(e) {
             e.preventDefault();
             console.log('Form submitted!');
             
-            // Check if at least one image is uploaded
             const hasImage = imageFiles.some(file => file !== null && file !== undefined);
             if (!hasImage) {
                 alert('Please upload at least one image.');
@@ -906,6 +908,7 @@
             formData.append('doctor_name', data.doctorName);
             formData.append('doctor_email', data.doctorEmail);
             formData.append('patient_id', data.patientId);
+            formData.append('patient_email', data.patientEmail);
             formData.append('patient_age', data.patientAge);
             formData.append('patient_gender', data.patientGender);
             formData.append('lesion_duration', data.lesionDuration.replace(/-/g, ' '));
@@ -922,7 +925,6 @@
             formData.append('portal_source', 'Dermatology Portal');
             
             try {
-                // Create collage if multiple images, or use single image
                 const validImages = imageFiles.filter(file => file !== null && file !== undefined);
                 
                 if (validImages.length === 0) {
@@ -943,7 +945,6 @@
                 
                 console.log(`Sending ${validImages.length > 1 ? 'collage' : 'single image'}...`);
                 
-                // Send to Make.com
                 const response = await fetch(WEBHOOK_URL, {
                     method: 'POST',
                     body: formData
